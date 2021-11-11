@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import os
 
 
+
 def import_data(filename, mag_to_flux=False):
     data_path = os.path.abspath('/home/sedmdev/Research/ant_fitting/CRTS_Test_Data')
 
@@ -88,12 +89,35 @@ def plot_mag_flux(data1, data2, fig_title, dynamic=False, cool=False):
         plt.show()
 
 def sigma_clipping(data, poly_order, sigma):
+    trend = np.polyfit(data[0], data[1], poly_order)
+    polytrend = np.polyval(trend, data[0])
+    polytrend_std = sigma * np.std(polytrend)
+    sigma_bounds = [polytrend + polytrend_std, polytrend - polytrend_std]
 
+    sigma_idx = []
+    for i in range(len(data)):
+        if data[1][i] >= polytrend[i] + polytrend_std:
+            sigma_idx.append(i)
+        if data[1][i] <= polytrend[i] - polytrend_std:
+            sigma_idx.append(i)
+
+    data_sigma_clip = data.drop(labels=sigma_idx, axis=0, inplace=False).reset_index(drop=True)
+
+    return data_sigma_clip, polytrend, polytrend_std
 
 
 mag_dat = import_data('1118060051368.dat', mag_to_flux=False)
 flux_dat = import_data('1118060051368.dat', mag_to_flux=True)
 
+
+log = open(f'crts_{mag_dat[1]}_log.txt', 'w')
+
 plot_mag_flux(data1=mag_dat[0], data2=flux_dat[0], fig_title=mag_dat[1])
+sigma_clip = sigma_clipping(flux_dat[0], 5, 5)
+
+print(flux_dat[0])
+print(sigma_clip[0])
+
+log.close()
 
 
