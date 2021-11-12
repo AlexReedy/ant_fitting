@@ -13,4 +13,4 @@ for i in range(len(data_list)):
 
     fit.sigma_clipping(5, 5)
 
-    fit.plot_sigma_clip(show_clipped=True, save=True)
+    fit.plot_sigma_clip(show_clipped=True, save=False)
