@@ -52,12 +52,13 @@ class FittingLibrary():
         self.flux_data = flux_data
 
     def plot_mag(self, show=False, save=False):
-        window_name = f'{self.plot_title}_magnitude_light_curve'
         fig, ax = plt.subplots(1)
         fig.set_size_inches(10, 7)
         fig.suptitle(f'{self.plot_title} Magnitude Light Curve')
+        window_name = f'{self.plot_title}_magnitude_light_curve'
         fig.canvas.manager.set_window_title(window_name)
 
+        ax.set(xlabel='Modified Julian Day [MJD]', ylabel='Magnitude')
         ax.invert_yaxis()
         ax.errorbar(self.mag_data[0],
                     self.mag_data[1],
@@ -69,7 +70,7 @@ class FittingLibrary():
                     )
 
         if save:
-            plt.savefig(f'{self.current_dir}/{window_name}')
+            plt.savefig(f'{self.current_dir}/{window_name}.png')
 
         if show:
             plt.pause(self.pause_time)
@@ -94,11 +95,12 @@ class FittingLibrary():
         fig, ax = plt.subplots(1)
         fig.set_size_inches(10, 7)
         fig.suptitle(f'{self.plot_title} Sigma Clipping')
-        ax.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
 
         clipped_x = self.flux_data[0][self.sigma_idx]
         clipped_y = self.flux_data[1][self.sigma_idx]
 
+        ax.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
+        ax.set(xlabel='Modified Julian Day [MJD]', ylabel='Flux [Jy]')
         ax.errorbar(self.sigma_clip_data[0],
                     self.sigma_clip_data[1],
                     linestyle='none',
@@ -126,6 +128,8 @@ class FittingLibrary():
                 color='black')
 
         if show_clipped:
+            window_name = f'{self.plot_title}_sigma_clipping_show_clipped'
+            fig.canvas.manager.set_window_title(window_name)
             ax.errorbar(clipped_x,
                         clipped_y,
                         linestyle='none',
@@ -133,12 +137,15 @@ class FittingLibrary():
                         ms=4,
                         color='red'
                         )
+            if save:
+                plt.savefig(f'{self.current_dir}/{self.plot_title}_sigma_clipping_show_clipped.png')
 
-        if save:
+        if save and not show_clipped:
+            window_name = f'{self.plot_title}_sigma_clipping'
+            fig.canvas.manager.set_window_title(window_name)
             plt.savefig(f'{self.current_dir}/{self.plot_title}_sigma_clipping.png')
 
         if show:
             plt.pause(self.pause_time)
             plt.show(block=False)
             plt.close()
-

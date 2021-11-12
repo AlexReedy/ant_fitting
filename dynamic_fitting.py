@@ -11,5 +11,6 @@ fit.plot_mag(save=True, show=True)
 fit.sigma_clipping()
 
 fit.plot_sigma_clip(save=True, show=True)
+fit.plot_sigma_clip(save=True, show_clipped=True, show=True)
 
 
