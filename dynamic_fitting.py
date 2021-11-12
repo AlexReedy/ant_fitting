@@ -1,11 +1,15 @@
-from antLib import *
-lib = ant_fit()
+from fittingLib import *
+fit = FittingLibrary()
 
 ant_confirm_id = '1118060051368.dat'
 ant_test_id = '1118060050249.dat'
 
-lib.import_data(file=ant_confirm_id)
-lib.sigma_clipping(5, 5)
-lib.plot_sigma_clip(show_clipped=True)
+fit.import_data(file=ant_test_id)
+
+fit.plot_mag(save=False)
+
+fit.sigma_clipping(5, 5)
+
+fit.plot_sigma_clip(show_clipped=True, save=True)
 
 

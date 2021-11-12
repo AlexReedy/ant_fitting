@@ -10,7 +10,7 @@ poly_trend_color = 'red'
 sigma_trend = 'black'
 
 
-class ant_fit():
+class FittingLibrary():
     def __init__(self):
         path = f'/home/{getpass.getuser()}/ANT_Fitting'
         if not os.path.exists(path):
@@ -29,10 +29,9 @@ class ant_fit():
         self.sigma_idx = None
         self.sigma_clip_data = None
 
-
     def import_data(self, file):
         self.filename = file
-        self.plot_title = f'CRTS ID: {self.filename[:-4]}'
+        self.plot_title = f'{self.filename[:-4]}'
 
         dir_path = f'{self.home_dir}/{self.filename[:-4]}'
         if not os.path.exists(dir_path):
@@ -50,7 +49,23 @@ class ant_fit():
         self.mag_data = mag_data
         self.flux_data = flux_data
 
-        return self.mag_data, self.flux_data
+    def plot_mag(self, save=False):
+        fig, ax = plt.subplots(1)
+        fig.set_size_inches(10, 7)
+        fig.suptitle(f'{self.plot_title} Magnitude Light Curve')
+        ax.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
+        ax.invert_yaxis()
+
+        ax.errorbar(self.mag_data[0],
+                    self.mag_data[1],
+                    yerr=self.mag_data[2],
+                    linestyle='none',
+                    marker='s',
+                    ms=3,
+                    color='black'
+                    )
+        plt.pause(2)
+        plt.show(block=False)
 
     def sigma_clipping(self, poly_order, sigma):
         trend = np.polyfit(self.flux_data[0], self.flux_data[1], poly_order)
@@ -69,7 +84,7 @@ class ant_fit():
     def plot_sigma_clip(self, show_clipped=False, save=False):
         fig, ax = plt.subplots(1)
         fig.set_size_inches(10, 7)
-        fig.suptitle(f'{self.plot_title}')
+        fig.suptitle(f'{self.plot_title} Sigma Clipping')
         ax.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
 
         clipped_x = self.flux_data[0][self.sigma_idx]
@@ -112,4 +127,4 @@ class ant_fit():
         plt.pause(2)
         plt.show(block=False)
         if save:
-            plt.savefig(f'{self.current_dir}/plot_test.png')
+            plt.savefig(f'{self.current_dir}/{self.plot_title}_sigma_clipping.png')
