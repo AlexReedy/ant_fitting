@@ -51,16 +51,14 @@ class FittingLibrary():
         self.mag_data = mag_data
         self.flux_data = flux_data
 
-    def plot_mag(self, save=False):
-        window_name = f'{self.plot_title}_magnitude_light_curve.png'
+    def plot_mag(self, show=False, save=False):
+        window_name = f'{self.plot_title}_magnitude_light_curve'
         fig, ax = plt.subplots(1)
         fig.set_size_inches(10, 7)
         fig.suptitle(f'{self.plot_title} Magnitude Light Curve')
         fig.canvas.manager.set_window_title(window_name)
 
-        ax.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
         ax.invert_yaxis()
-
         ax.errorbar(self.mag_data[0],
                     self.mag_data[1],
                     yerr=self.mag_data[2],
@@ -69,12 +67,15 @@ class FittingLibrary():
                     ms=3,
                     color='black'
                     )
-        plt.pause(self.pause_time)
-        plt.show(block=False)
-        plt.close()
+
+        if show:
+            plt.pause(self.pause_time)
+            plt.show(block=False)
+            plt.close()
 
         if save:
             plt.savefig(f'{self.current_dir}/{window_name}')
+            plt.close()
 
     def sigma_clipping(self, poly_order, sigma):
         trend = np.polyfit(self.flux_data[0], self.flux_data[1], poly_order)
