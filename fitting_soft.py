@@ -5,34 +5,6 @@ import matplotlib.pyplot as plt
 import os
 
 
-def plot_dat(data_list, overlays=None):
-    fig, ax = plt.subplots(1)
-    fig.set_size_inches(10, 7)
-    ax.set_title(f'Flux Light Curve')
-    ax.set_xlabel('Modified Julian Day')
-    ax.set_ylabel('Flux')
-    ax.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
-
-    if overlays is None:
-        ax.errorbar(data_list[0][0],
-                    data_list[0][1],
-                    linestyle='none',
-                    marker='s',
-                    ms=3,
-                    color='black')
-        plt.show()
-
-    if overlays != None:
-        for i in range(overlays):
-            ax.errorbar(data_list[i][0],
-                        data_list[i][1],
-                        linestyle='none',
-                        marker='s',
-                        ms=3,
-                        color='black')
-        plt.show()
-
-
 def import_data(filename):
     data_path = os.path.abspath('/home/sedmdev/Research/ant_fitting/CRTS_Test_Data')
 
@@ -48,17 +20,78 @@ def import_data(filename):
     return filename, mag_data, flux_data
 
 
-def plot_mag_flux(data1, data2, fig_title, dynamic=False, cool=False):
-    fig, ax = plt.subplots(2)
+def make_plot(data, fig_title, plot_title, x_title, y_title, mag=False, dynamic=False):
+    fig, ax = plt.subplots(1)
     fig.set_size_inches(10, 7)
-    fig.suptitle(f'CRTS {fig_title}')
+    fig.suptitle(f'{plot_title} [ID: {fig_title[:-4]}]')
+    fig.canvas.manager.set_window_title(f'{fig_title[:-4]}_{plot_title}')
 
-    ax[0].set_title('Magnitude Light Curve')
+    ax.set_xlabel(f'{x_title}')
+    ax.set_ylabel(f'{y_title}')
+
+    if not dynamic:
+        if not mag:
+            ax.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
+            ax.errorbar(data[0],
+                        data[1],
+                        linestyle='none',
+                        marker='s',
+                        ms=3,
+                        elinewidth=1,
+                        color='black')
+            plt.show()
+
+        if mag:
+            ax.invert_yaxis()
+            ax.errorbar(data[0],
+                        data[1],
+                        yerr=data[2],
+                        linestyle='none',
+                        marker='s',
+                        ms=3,
+                        elinewidth=1,
+                        color='black')
+            plt.show()
+    if dynamic:
+        if not mag:
+            ax.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
+            for i in range(len(data)):
+                ax.errorbar(data[0][i],
+                            data[1][i],
+                            linestyle='none',
+                            marker='s',
+                            ms=3,
+                            elinewidth=1,
+                            color='black')
+                plt.pause(.001)
+            plt.show()
+        if mag:
+            for i in range(len(data)):
+                ax.invert_yaxis()
+                ax.errorbar(data[0][i],
+                            data[1][i],
+                            yerr=data[2][i],
+                            linestyle='none',
+                            marker='s',
+                            ms=3,
+                            elinewidth=1,
+                            color='black')
+                plt.pause(.001)
+            plt.show()
+
+
+def plot_mag_flux(data1, data2, fig_title, dynamic=False):
+    fig, ax = plt.subplots(2)
+    fig.set_size_inches(10, 8)
+    fig.canvas.manager.set_window_title(f'{fig_title[:-4]}_Mag_Flux_Comparison')
+    fig.suptitle(f'CRTS {fig_title[:-4]}')
+
+    ax[0].set_title('Magnitude')
     ax[0].set_xlabel('Modified Julian Day')
     ax[0].set_ylabel('Magnitude')
     ax[0].invert_yaxis()
 
-    ax[1].set_title(f'Flux Light Curve')
+    ax[1].set_title(f'Flux')
     ax[1].set_xlabel('Modified Julian Day')
     ax[1].set_ylabel('Flux')
     ax[1].ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
@@ -129,67 +162,30 @@ def sigma_clipping(data, poly_order, sigma, fill=False):
 
     data_sigma_clip = data.drop(labels=sigma_idx, axis=0, inplace=False).reset_index(drop=True)
 
-    fig, ax = plt.subplots(1)
-    fig.set_size_inches(10, 7)
+    return sigma_idx, data_sigma_clip, polytrend, polytrend_std
 
-    ax.set_title('Sigma Clipping')
-    ax.set_xlabel('Modified Julian Day')
-    ax.set_ylabel('Flux')
-    ax.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
-
-    ax.errorbar(data[0],
-                data[1],
-                linestyle='none',
-                marker='s',
-                ms=3,
-                elinewidth=1,
-                color='black')
-
-    ax.plot(data[0],
-            polytrend,
-            linewidth=1,
-            color='red')
-
-    if not fill:
-        ax.plot(data[0],
-                polytrend + polytrend_std,
-                linewidth=1,
-                linestyle='--',
-                color='black')
-
-        ax.plot(data[0],
-                polytrend - polytrend_std,
-                linewidth=1,
-                linestyle='--',
-                color='black')
-
-        plt.show()
-
-    if fill:
-        ax.plot(data[0],
-                polytrend + polytrend_std,
-                linewidth=1,
-                linestyle='--',
-                color='grey')
-
-        ax.plot(data[0],
-                polytrend - polytrend_std,
-                linewidth=1,
-                linestyle='--',
-                color='grey')
-
-        ax.fill_between(data[0],
-                        sigma_bounds[0],
-                        sigma_bounds[1],
-                        color='whitesmoke')
-        plt.show()
-
-    return data_sigma_clip, polytrend, polytrend_std
 
 ant_confirm_id = '1118060051368.dat'
-dat = import_data('1118060050249.dat')
+ant_test_id = '1118060050249.dat'
+
+dat = import_data(ant_confirm_id)
+
 mag_dat = dat[1]
+make_plot(mag_dat,
+          fig_title=dat[0],
+          plot_title='Magnitude',
+          x_title='Modified Julian Day',
+          y_title='Magnitude',
+          mag=True,
+          dynamic=True)
+
 flux_dat = dat[2]
+make_plot(flux_dat,
+          fig_title=dat[0],
+          plot_title='Flux',
+          x_title='Modified Julian Day',
+          y_title='Flux',
+          mag=False,
+          dynamic=True)
 
 plot_mag_flux(mag_dat, flux_dat, fig_title=dat[0], dynamic=False)
-sc_dat = sigma_clipping(flux_dat, 5, 5, fill=True)
