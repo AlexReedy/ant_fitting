@@ -45,8 +45,10 @@ class FittingLibrary():
         data_set_path = os.path.join(data_path, file)
         data = pd.read_csv(data_set_path, usecols=(0, 1, 2), delim_whitespace=True, header=None)
         mag_data = data.sort_values(by=0, ascending=True, ignore_index=True)
+
         flux_data = data.sort_values(by=0, ascending=True, ignore_index=True)
         flux_data[1] = flux_data[1].apply(lambda x: 3631.0 * (10.0 ** (-0.4 * x)))
+        flux_data[2] = .000005
 
         self.mag_data = mag_data
         self.flux_data = flux_data
@@ -63,6 +65,31 @@ class FittingLibrary():
         ax.errorbar(self.mag_data[0],
                     self.mag_data[1],
                     yerr=self.mag_data[2],
+                    linestyle='none',
+                    marker='s',
+                    ms=3,
+                    color='black'
+                    )
+
+        if save:
+            plt.savefig(f'{self.current_dir}/{window_name}.png')
+
+        if show:
+            plt.pause(self.pause_time)
+            plt.show(block=False)
+            plt.close()
+
+    def plot_flux(self, show=False, save=False):
+        fig, ax = plt.subplots(1)
+        fig.set_size_inches(10, 7)
+        fig.suptitle(f'{self.plot_title} Flux Light Curve')
+        window_name = f'{self.plot_title}_flux_light_curve'
+        fig.canvas.manager.set_window_title(window_name)
+
+        ax.set(xlabel='Modified Julian Day [MJD]', ylabel='Flux [Jy]')
+        ax.errorbar(self.flux_data[0],
+                    self.flux_data[1],
+                    yerr=self.flux_data[2],
                     linestyle='none',
                     marker='s',
                     ms=3,
