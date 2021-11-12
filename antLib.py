@@ -3,130 +3,113 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import os
+import getpass
 
 plot_base_color = 'black'
 poly_trend_color = 'red'
 sigma_trend = 'black'
+
+
 class ant_fit():
+    def __init__(self):
+        path = f'/home/{getpass.getuser()}/ANT_Fitting'
+        if not os.path.exists(path):
+            os.mkdir(path)
 
-    def import_data(self, filename):
+        self.filename = None
+        self.plot_title = None
+        self.home_dir = os.path.abspath(path)
+        self.current_dir = None
+
+        self.mag_data = None
+        self.flux_data = None
+
+        self.polytrend = None
+        self.polytrend_std = None
+        self.sigma_idx = None
+        self.sigma_clip_data = None
+
+
+    def import_data(self, file):
+        self.filename = file
+        self.plot_title = f'CRTS ID: {self.filename[:-4]}'
+
+        dir_path = f'{self.home_dir}/{self.filename[:-4]}'
+        if not os.path.exists(dir_path):
+            os.mkdir(dir_path)
+            self.current_dir = os.path.abspath(dir_path)
+        self.current_dir = os.path.abspath(dir_path)
+
         data_path = os.path.abspath('/home/sedmdev/Research/ant_fitting/CRTS_Test_Data')
-
-        data_set_path = os.path.join(data_path, filename)
-
+        data_set_path = os.path.join(data_path, file)
         data = pd.read_csv(data_set_path, usecols=(0, 1, 2), delim_whitespace=True, header=None)
-
         mag_data = data.sort_values(by=0, ascending=True, ignore_index=True)
-
         flux_data = data.sort_values(by=0, ascending=True, ignore_index=True)
         flux_data[1] = flux_data[1].apply(lambda x: 3631.0 * (10.0 ** (-0.4 * x)))
 
-        return filename, mag_data, flux_data
+        self.mag_data = mag_data
+        self.flux_data = flux_data
 
-    def make_plot_static(self, data, fig_title, plot_title, x_title, y_title, mag=False):
+        return self.mag_data, self.flux_data
+
+    def sigma_clipping(self, poly_order, sigma):
+        trend = np.polyfit(self.flux_data[0], self.flux_data[1], poly_order)
+        self.polytrend = np.polyval(trend, self.flux_data[0])
+        self.polytrend_std = sigma * np.std(self.polytrend)
+
+        self.sigma_idx = []
+        for i in range(len(self.flux_data)):
+            if self.flux_data[1][i] >= self.polytrend[i] + self.polytrend_std:
+                self.sigma_idx.append(i)
+            if self.flux_data[1][i] <= self.polytrend[i] - self.polytrend_std:
+                self.sigma_idx.append(i)
+
+        self.sigma_clip_data = self.flux_data.drop(labels=self.sigma_idx, axis=0, inplace=False).reset_index(drop=True)
+
+    def plot_sigma_clip(self, show_clipped=False, save=False):
         fig, ax = plt.subplots(1)
         fig.set_size_inches(10, 7)
-        fig.suptitle(f'{plot_title} [ID: {fig_title[:-4]}]')
-        fig.canvas.manager.set_window_title(f'{fig_title[:-4]}_{plot_title}')
+        fig.suptitle(f'{self.plot_title}')
+        ax.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
 
-        ax.set_xlabel(f'{x_title}')
-        ax.set_ylabel(f'{y_title}')
+        clipped_x = self.flux_data[0][self.sigma_idx]
+        clipped_y = self.flux_data[1][self.sigma_idx]
 
-        if not mag:
-            ax.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
-            ax.errorbar(data[0],
-                        data[1],
+        ax.errorbar(self.sigma_clip_data[0],
+                    self.sigma_clip_data[1],
+                    linestyle='none',
+                    marker='s',
+                    ms=3,
+                    color='black'
+                    )
+
+        ax.plot(self.flux_data[0],
+                self.polytrend,
+                linestyle='--',
+                linewidth='1',
+                color='black')
+
+        ax.plot(self.flux_data[0],
+                self.polytrend - self.polytrend_std,
+                linestyle='--',
+                linewidth='1',
+                color='black')
+
+        ax.plot(self.flux_data[0],
+                self.polytrend + self.polytrend_std,
+                linestyle='--',
+                linewidth='1',
+                color='black')
+
+        if show_clipped:
+            ax.errorbar(clipped_x,
+                        clipped_y,
                         linestyle='none',
-                        marker='s',
-                        ms=3,
-                        elinewidth=1,
-                        color='black')
-            plt.show()
-
-        if mag:
-            ax.invert_yaxis()
-            ax.errorbar(data[0],
-                        data[1],
-                        yerr=data[2],
-                        linestyle='none',
-                        marker='s',
-                        ms=3,
-                        elinewidth=1,
-                        color=plot_base_color)
-            plt.show()
-
-    def make_plot_dynamic(self, data, fig_title, plot_title, x_title, y_title, mag=False):
-        fig, ax = plt.subplots(1)
-        fig.set_size_inches(10, 7)
-        fig.suptitle(f'{plot_title} [ID: {fig_title[:-4]}]')
-        fig.canvas.manager.set_window_title(f'{fig_title[:-4]}_{plot_title}')
-
-        ax.set_xlabel(f'{x_title}')
-        ax.set_ylabel(f'{y_title}')
-        ax.set_xlim(xmin=data[0].min() - 100,
-                    xmax=data[0].max() + 100)
-
-        if not mag:
-            for i in range(len(data)):
-                ax.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
-                ax.errorbar(data[0][i],
-                            data[1][i],
-                            linestyle='none',
-                            marker='s',
-                            ms=3,
-                            elinewidth=1,
-                            color=plot_base_color)
-                plt.pause(.001)
-            plt.show()
-
-        if mag:
-            for i in range(len(data)):
-                ax.invert_yaxis()
-                ax.errorbar(data[0][i],
-                            data[1][i],
-                            yerr=data[2][i],
-                            linestyle='none',
-                            marker='s',
-                            ms=3,
-                            elinewidth=1,
-                            color=plot_base_color)
-                plt.pause(.001)
-            plt.show()
-
-    def make_plot(self, data, fig_title, plot_title, x_title, y_title, mag=False, dynamic=False):
-        if not dynamic:
-            self.make_plot_static(data=data,
-                                  fig_title=fig_title,
-                                  plot_title=plot_title,
-                                  x_title=x_title,
-                                  y_title=y_title,
-                                  mag=mag)
-        if dynamic:
-            self.make_plot_dynamic(data=data,
-                                   fig_title=fig_title,
-                                   plot_title=plot_title,
-                                   x_title=x_title,
-                                   y_title=y_title,
-                                   mag=mag)
-
-
-    def sigma_clipping(self,data, poly_order, sigma):
-        trend = np.polyfit(data[0], data[1], poly_order)
-        polytrend = np.polyval(trend, data[0])
-        polytrend_std = sigma * np.std(polytrend)
-        sigma_bounds = [polytrend + polytrend_std, polytrend - polytrend_std]
-
-        sigma_idx = []
-        for i in range(len(data)):
-            if data[1][i] >= polytrend[i] + polytrend_std:
-                sigma_idx.append(i)
-            if data[1][i] <= polytrend[i] - polytrend_std:
-                sigma_idx.append(i)
-
-        data_sigma_clip = data.drop(labels=sigma_idx, axis=0, inplace=False).reset_index(drop=True)
-
-        return sigma_idx, data_sigma_clip, polytrend, polytrend_std
-
-
-
-
+                        marker='x',
+                        ms=4,
+                        color='red'
+                        )
+        plt.pause(2)
+        plt.show(block=False)
+        if save:
+            plt.savefig(f'{self.current_dir}/plot_test.png')
