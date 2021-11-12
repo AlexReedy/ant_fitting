@@ -10,7 +10,3 @@ for i in range(len(data_list)):
     fit.import_data(file=data_list[i])
 
     fit.plot_mag(save=False)
-
-    fit.sigma_clipping(5, 5)
-
-    fit.plot_sigma_clip(show_clipped=True, save=False)

@@ -68,16 +68,15 @@ class FittingLibrary():
                     color='black'
                     )
 
+        if save:
+            plt.savefig(f'{self.current_dir}/{window_name}')
+
         if show:
             plt.pause(self.pause_time)
             plt.show(block=False)
             plt.close()
 
-        if save:
-            plt.savefig(f'{self.current_dir}/{window_name}')
-            plt.close()
-
-    def sigma_clipping(self, poly_order, sigma):
+    def sigma_clipping(self, poly_order=5, sigma=5):
         trend = np.polyfit(self.flux_data[0], self.flux_data[1], poly_order)
         self.polytrend = np.polyval(trend, self.flux_data[0])
         self.polytrend_std = sigma * np.std(self.polytrend)
@@ -91,7 +90,7 @@ class FittingLibrary():
 
         self.sigma_clip_data = self.flux_data.drop(labels=self.sigma_idx, axis=0, inplace=False).reset_index(drop=True)
 
-    def plot_sigma_clip(self, show_clipped=False, save=False):
+    def plot_sigma_clip(self, show=False, show_clipped=False, save=False):
         fig, ax = plt.subplots(1)
         fig.set_size_inches(10, 7)
         fig.suptitle(f'{self.plot_title} Sigma Clipping')
@@ -135,9 +134,11 @@ class FittingLibrary():
                         color='red'
                         )
 
-        plt.pause(self.pause_time)
-        plt.show(block=False)
-        plt.close()
-
         if save:
             plt.savefig(f'{self.current_dir}/{self.plot_title}_sigma_clipping.png')
+
+        if show:
+            plt.pause(self.pause_time)
+            plt.show(block=False)
+            plt.close()
+
