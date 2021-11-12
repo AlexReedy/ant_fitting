@@ -4,7 +4,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 
-
+plot_base_color = 'black'
+poly_trend_color = 'red'
+sigma_trend = 'black'
 class ant_fit():
 
     def import_data(self, filename):
@@ -20,7 +22,6 @@ class ant_fit():
         flux_data[1] = flux_data[1].apply(lambda x: 3631.0 * (10.0 ** (-0.4 * x)))
 
         return filename, mag_data, flux_data
-
 
     def make_plot_static(self, data, fig_title, plot_title, x_title, y_title, mag=False):
         fig, ax = plt.subplots(1)
@@ -51,9 +52,8 @@ class ant_fit():
                         marker='s',
                         ms=3,
                         elinewidth=1,
-                        color='black')
+                        color=plot_base_color)
             plt.show()
-
 
     def make_plot_dynamic(self, data, fig_title, plot_title, x_title, y_title, mag=False):
         fig, ax = plt.subplots(1)
@@ -75,7 +75,7 @@ class ant_fit():
                             marker='s',
                             ms=3,
                             elinewidth=1,
-                            color='black')
+                            color=plot_base_color)
                 plt.pause(.001)
             plt.show()
 
@@ -89,7 +89,7 @@ class ant_fit():
                             marker='s',
                             ms=3,
                             elinewidth=1,
-                            color='black')
+                            color=plot_base_color)
                 plt.pause(.001)
             plt.show()
 
@@ -108,3 +108,25 @@ class ant_fit():
                                    x_title=x_title,
                                    y_title=y_title,
                                    mag=mag)
+
+
+    def sigma_clipping(self,data, poly_order, sigma):
+        trend = np.polyfit(data[0], data[1], poly_order)
+        polytrend = np.polyval(trend, data[0])
+        polytrend_std = sigma * np.std(polytrend)
+        sigma_bounds = [polytrend + polytrend_std, polytrend - polytrend_std]
+
+        sigma_idx = []
+        for i in range(len(data)):
+            if data[1][i] >= polytrend[i] + polytrend_std:
+                sigma_idx.append(i)
+            if data[1][i] <= polytrend[i] - polytrend_std:
+                sigma_idx.append(i)
+
+        data_sigma_clip = data.drop(labels=sigma_idx, axis=0, inplace=False).reset_index(drop=True)
+
+        return sigma_idx, data_sigma_clip, polytrend, polytrend_std
+
+
+
+
