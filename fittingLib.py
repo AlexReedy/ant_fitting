@@ -223,3 +223,6 @@ class FittingLibrary():
             plt.show(block=False)
         if save:
             plt.savefig(f'{self.current_dir}/Plots/{self.plot_title}_sigma_clipping_show_clipped.png')
+
+
+        plt.close()

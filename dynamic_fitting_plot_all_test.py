@@ -1,5 +1,5 @@
 from fittingLib import *
-fit = FittingLibrary(pause=.5)
+fit = FittingLibrary(pause=.1)
 
 for data_set in fit.data_sets:
     print(data_set)
