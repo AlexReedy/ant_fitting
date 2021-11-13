@@ -103,6 +103,8 @@ class FittingLibrary():
             plt.show(block=False)
             plt.close()
 
+        plt.close()
+
     def plot_flux(self, show=True, save=True):
         fig, ax = plt.subplots(1)
         fig.set_size_inches(10, 7)
@@ -128,6 +130,8 @@ class FittingLibrary():
             plt.pause(self.pause_time)
             plt.show(block=False)
             plt.close()
+
+        plt.close()
 
     def sigma_clipping(self, poly_order=5, sigma=5):
         self.poly_order = poly_order
