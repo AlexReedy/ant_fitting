@@ -12,9 +12,12 @@ sigma_trend = 'black'
 
 class FittingLibrary():
     def __init__(self, pause=0.5):
+
         path = f'/home/{getpass.getuser()}/ANT_Fitting'
         if not os.path.exists(path):
             os.mkdir(path)
+
+        self.data_sets = os.listdir(os.path.abspath('/home/sedmdev/Research/ant_fitting/CRTS_Test_Data'))
 
         self.filename = None
         self.plot_title = None
@@ -34,6 +37,8 @@ class FittingLibrary():
 
         self.pause_time = pause
 
+        self.filehandler = None
+
     def import_data(self, file):
         self.filename = file
         self.plot_title = f'{self.filename[:-4]}'
@@ -47,6 +52,7 @@ class FittingLibrary():
             os.mkdir(f'{self.current_dir}/Data')
 
         self.current_dir = os.path.abspath(dir_path)
+        self.filehandler = open(f'{self.current_dir}/{self.plot_title}_log.txt', 'w')
 
         data_path = os.path.abspath('/home/sedmdev/Research/ant_fitting/CRTS_Test_Data')
         data_set_path = os.path.join(data_path, file)
@@ -64,11 +70,12 @@ class FittingLibrary():
                              index=False,
                              header=False,
                              )
-
         self.flux_data.to_csv(f'{self.current_dir}/Data/{self.plot_title}_sorted_flux.dat',
                               index=False,
                               header=False,
                               )
+
+        self.filehandler.close()
 
     def plot_mag(self, show=True, save=True):
         fig, ax = plt.subplots(1)

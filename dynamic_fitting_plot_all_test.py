@@ -1,12 +1,10 @@
 from fittingLib import *
-fit = FittingLibrary()
+fit = FittingLibrary(pause=.5)
 
-ant_confirm_id = '1118060051368.dat'
-ant_test_id = '1118060050249.dat'
-
-data_list = [ant_confirm_id, ant_test_id]
-
-for i in range(len(data_list)):
-    fit.import_data(file=data_list[i])
-
-    fit.plot_mag(save=False)
+for data_set in fit.data_sets:
+    print(data_set)
+    fit.import_data(file=data_set)
+    fit.plot_mag(save=True, show=True)
+    fit.plot_flux(save=True, show=True)
+    fit.sigma_clipping()
+    fit.plot_sigma_clip(save=True, show=True)
