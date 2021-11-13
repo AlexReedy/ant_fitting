@@ -11,7 +11,7 @@ sigma_trend = 'black'
 
 
 class FittingLibrary():
-    def __init__(self):
+    def __init__(self, pause=0.5):
         path = f'/home/{getpass.getuser()}/ANT_Fitting'
         if not os.path.exists(path):
             os.mkdir(path)
@@ -24,21 +24,28 @@ class FittingLibrary():
         self.mag_data = None
         self.flux_data = None
 
+        self.poly_order = None
+        self.sigma = None
+
         self.polytrend = None
         self.polytrend_std = None
         self.sigma_idx = None
         self.sigma_clip_data = None
 
-        self.pause_time = 1
+        self.pause_time = pause
 
     def import_data(self, file):
         self.filename = file
         self.plot_title = f'{self.filename[:-4]}'
 
         dir_path = f'{self.home_dir}/{self.filename[:-4]}'
+
         if not os.path.exists(dir_path):
             os.mkdir(dir_path)
             self.current_dir = os.path.abspath(dir_path)
+            os.mkdir(f'{self.current_dir}/Plots')
+            os.mkdir(f'{self.current_dir}/Data')
+
         self.current_dir = os.path.abspath(dir_path)
 
         data_path = os.path.abspath('/home/sedmdev/Research/ant_fitting/CRTS_Test_Data')
@@ -53,7 +60,17 @@ class FittingLibrary():
         self.mag_data = mag_data
         self.flux_data = flux_data
 
-    def plot_mag(self, show=False, save=False):
+        self.mag_data.to_csv(f'{self.current_dir}/Data/{self.plot_title}_sorted_mag.dat',
+                             index=False,
+                             header=False,
+                             )
+
+        self.flux_data.to_csv(f'{self.current_dir}/Data/{self.plot_title}_sorted_flux.dat',
+                              index=False,
+                              header=False,
+                              )
+
+    def plot_mag(self, show=True, save=True):
         fig, ax = plt.subplots(1)
         fig.set_size_inches(10, 7)
         fig.suptitle(f'{self.plot_title} Magnitude Light Curve')
@@ -72,14 +89,14 @@ class FittingLibrary():
                     )
 
         if save:
-            plt.savefig(f'{self.current_dir}/{window_name}.png')
+            plt.savefig(f'{self.current_dir}/Plots/{window_name}.png')
 
         if show:
             plt.pause(self.pause_time)
             plt.show(block=False)
             plt.close()
 
-    def plot_flux(self, show=False, save=False):
+    def plot_flux(self, show=True, save=True):
         fig, ax = plt.subplots(1)
         fig.set_size_inches(10, 7)
         fig.suptitle(f'{self.plot_title} Flux Light Curve')
@@ -87,6 +104,7 @@ class FittingLibrary():
         fig.canvas.manager.set_window_title(window_name)
 
         ax.set(xlabel='Modified Julian Day [MJD]', ylabel='Flux [Jy]')
+        ax.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
         ax.errorbar(self.flux_data[0],
                     self.flux_data[1],
                     yerr=self.flux_data[2],
@@ -97,7 +115,7 @@ class FittingLibrary():
                     )
 
         if save:
-            plt.savefig(f'{self.current_dir}/{window_name}.png')
+            plt.savefig(f'{self.current_dir}/Plots/{window_name}.png')
 
         if show:
             plt.pause(self.pause_time)
@@ -105,31 +123,40 @@ class FittingLibrary():
             plt.close()
 
     def sigma_clipping(self, poly_order=5, sigma=5):
-        trend = np.polyfit(self.flux_data[0], self.flux_data[1], poly_order)
+        self.poly_order = poly_order
+        self.sigma = sigma
+
+        trend = np.polyfit(self.flux_data[0], self.flux_data[1], self.poly_order)
         self.polytrend = np.polyval(trend, self.flux_data[0])
-        self.polytrend_std = sigma * np.std(self.polytrend)
+        self.polytrend_std = self.sigma * np.std(self.polytrend)
 
         self.sigma_idx = []
         for i in range(len(self.flux_data)):
-            if self.flux_data[1][i] >= self.polytrend[i] + self.polytrend_std:
+            if (self.flux_data[1][i] - self.flux_data[2][i]) >= self.polytrend[i] + self.polytrend_std:
                 self.sigma_idx.append(i)
-            if self.flux_data[1][i] <= self.polytrend[i] - self.polytrend_std:
+            if (self.flux_data[1][i] + self.flux_data[2][i]) <= self.polytrend[i] - self.polytrend_std:
                 self.sigma_idx.append(i)
 
         self.sigma_clip_data = self.flux_data.drop(labels=self.sigma_idx, axis=0, inplace=False).reset_index(drop=True)
 
-    def plot_sigma_clip(self, show=False, show_clipped=False, save=False):
+        self.sigma_clip_data.to_csv(f'{self.current_dir}/Data/{self.plot_title}_sigma_clipped.dat',
+                                    index=False,
+                                    header=False,
+                                    )
+
+    def plot_sigma_clip(self, show=True, save=True):
         fig, ax = plt.subplots(1)
         fig.set_size_inches(10, 7)
-        fig.suptitle(f'{self.plot_title} Sigma Clipping')
 
         clipped_x = self.flux_data[0][self.sigma_idx]
         clipped_y = self.flux_data[1][self.sigma_idx]
+        clipped_err = self.flux_data[2][self.sigma_idx]
 
         ax.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
         ax.set(xlabel='Modified Julian Day [MJD]', ylabel='Flux [Jy]')
         ax.errorbar(self.sigma_clip_data[0],
                     self.sigma_clip_data[1],
+                    yerr=self.sigma_clip_data[2],
                     linestyle='none',
                     marker='s',
                     ms=3,
@@ -141,6 +168,15 @@ class FittingLibrary():
                 linestyle='--',
                 linewidth='1',
                 color='black')
+
+        if show:
+            ax.set_title(f'{self.plot_title} Fifth Order Polynomial Fit')
+            window_name = f'{self.plot_title}_polytrend'
+            fig.canvas.manager.set_window_title(window_name)
+            plt.pause(self.pause_time)
+            plt.show(block=False)
+        if save:
+            plt.savefig(f'{self.current_dir}/Plots/{self.plot_title}_polytrend.png')
 
         ax.plot(self.flux_data[0],
                 self.polytrend - self.polytrend_std,
@@ -154,25 +190,29 @@ class FittingLibrary():
                 linewidth='1',
                 color='black')
 
-        if show_clipped:
-            window_name = f'{self.plot_title}_sigma_clipping_show_clipped'
-            fig.canvas.manager.set_window_title(window_name)
-            ax.errorbar(clipped_x,
-                        clipped_y,
-                        linestyle='none',
-                        marker='x',
-                        ms=4,
-                        color='red'
-                        )
-            if save:
-                plt.savefig(f'{self.current_dir}/{self.plot_title}_sigma_clipping_show_clipped.png')
-
-        if save and not show_clipped:
+        if show:
+            ax.set_title(f'{self.plot_title} {self.sigma} Sigma Clipping')
             window_name = f'{self.plot_title}_sigma_clipping'
             fig.canvas.manager.set_window_title(window_name)
-            plt.savefig(f'{self.current_dir}/{self.plot_title}_sigma_clipping.png')
-
-        if show:
             plt.pause(self.pause_time)
             plt.show(block=False)
-            plt.close()
+        if save:
+            plt.savefig(f'{self.current_dir}/Plots/{self.plot_title}_{self.sigma}sigma_clipping.png')
+
+        ax.errorbar(clipped_x,
+                    clipped_y,
+                    yerr=clipped_err,
+                    linestyle='none',
+                    marker='x',
+                    ms=4,
+                    color='red'
+                    )
+
+        if show:
+            ax.set_title(f'{self.plot_title} {self.sigma} Sigma Clipping [Excluded Values]')
+            window_name = f'{self.plot_title}_{self.sigma}sigma_clipping_show_clipped'
+            fig.canvas.manager.set_window_title(window_name)
+            plt.pause(self.pause_time)
+            plt.show(block=False)
+        if save:
+            plt.savefig(f'{self.current_dir}/Plots/{self.plot_title}_sigma_clipping_show_clipped.png')
