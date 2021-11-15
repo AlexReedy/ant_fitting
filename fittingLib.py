@@ -35,6 +35,8 @@ class FittingLibrary():
         self.sigma_idx = None
         self.sigma_clip_data = None
 
+        self.sigma_clip_avg_data = None
+
         self.pause_time = pause
 
         self.filehandler = None
@@ -228,5 +230,39 @@ class FittingLibrary():
         if save:
             plt.savefig(f'{self.current_dir}/Plots/{self.plot_title}_sigma_clipping_show_clipped.png')
 
-
         plt.close()
+
+    def get_average(self):
+        unique_days_str = np.unique(self.sigma_clip_data[0].apply(lambda x: str(x)[0:5]))
+        unique_days = []
+        unique_fluxes_avg = []
+        unique_errors_avg = []
+
+        for i in range(len(unique_days_str)):
+            flux_list_per_obs = []
+            unique_days.append(int(unique_days_str[i]))
+            unique_errors_avg.append(.0005)
+            for j in range(len(self.sigma_clip_data)):
+                if unique_days_str[i] == str(self.sigma_clip_data[0][j])[0:5]:
+                    flux_list_per_obs.append(self.sigma_clip_data[1][j])
+            unique_fluxes_avg.append(np.average(flux_list_per_obs))
+
+        self.sigma_clip_avg_data = pd.DataFrame([unique_days, unique_fluxes_avg, unique_errors_avg]).T
+        self.sigma_clip_avg_data.to_csv(f'{self.current_dir}/Data/{self.plot_title}_sigma_clip_avg_data.dat',
+                                        index=False,
+                                        header=False,
+                                        )
+
+    def plot_sigma_clip_avg(self,show=True, save=True):
+        fig, ax = plt.subplots(1)
+        fig.set_size_inches(10, 7)
+        ax.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
+        ax.set(xlabel='Modified Julian Day [MJD]', ylabel='Flux [Jy]')
+        ax.errorbar(self.sigma_clip_avg_data[0],
+                    self.sigma_clip_avg_data[1],
+                    linestyle='none',
+                    marker='s',
+                    ms=3,
+                    color='black'
+                    )
+        plt.show()
