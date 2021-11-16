@@ -21,4 +21,5 @@ for data_set in fit.data_sets:
           f'Moving to Next Data Set!')
     counter += 1
 runtime = timeit.default_timer() - start
+
 print(f'Total Runtime: {int(runtime)} sec')
