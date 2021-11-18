@@ -1,4 +1,5 @@
 import time
+import timeit
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -11,14 +12,16 @@ sigma_trend = 'black'
 
 
 class FittingLibrary():
-    def __init__(self, pause=0.5):
+    def __init__(self, pause=0.5, user='ahreedy'):
 
+        # Checks to see if a directory for all fitting files exists, if not then it makes one in the users home folder
         path = f'/home/{getpass.getuser()}/ANT_Fitting'
         if not os.path.exists(path):
             os.mkdir(path)
 
         self.data_sets = os.listdir(os.path.abspath('/home/sedmdev/Research/ant_fitting/CRTS_Test_Data'))
 
+        self.user = user
         self.filename = None
         self.plot_title = None
         self.home_dir = os.path.abspath(path)
@@ -47,20 +50,25 @@ class FittingLibrary():
 
         dir_path = f'{self.home_dir}/{self.filename[:-4]}'
 
+        # Checks to see if a directory for this data set exists, if it doesn't then it creates one
         if not os.path.exists(dir_path):
-            os.mkdir(dir_path)
+            os.mkdir(dir_path)  # Makes the data set directory
             self.current_dir = os.path.abspath(dir_path)
-            os.mkdir(f'{self.current_dir}/Plots')
-            os.mkdir(f'{self.current_dir}/Data')
+            os.mkdir(f'{self.current_dir}/Plots')  # Makes a "Plots" subdirectory
+            os.mkdir(f'{self.current_dir}/Data')  # Makes a "Data" subdirectory
 
         self.current_dir = os.path.abspath(dir_path)
-        self.filehandler = open(f'{self.current_dir}/{self.plot_title}_log.txt', 'w')
 
+        # Finds the data set based on the filename provided and creates a dataframe
         data_path = os.path.abspath('/home/sedmdev/Research/ant_fitting/CRTS_Test_Data')
         data_set_path = os.path.join(data_path, file)
         data = pd.read_csv(data_set_path, usecols=(0, 1, 2), delim_whitespace=True, header=None)
+
+        # Creates a new datframe for the sorted magnitude data
         mag_data = data.sort_values(by=0, ascending=True, ignore_index=True)
 
+        # Creates a new dataframe for the sorted data that has been converted from magnitude to flux
+        # Also sets the error value to be used for the flux data
         flux_data = data.sort_values(by=0, ascending=True, ignore_index=True)
         flux_data[1] = flux_data[1].apply(lambda x: 3631.0 * (10.0 ** (-0.4 * x)))
         flux_data[2] = .000005
@@ -68,6 +76,8 @@ class FittingLibrary():
         self.mag_data = mag_data
         self.flux_data = flux_data
 
+        # Saves two new data frames. One for the sorted magnitude data, and one for the sorted flux data, saves to
+        # the "Data" subdirectory
         self.mag_data.to_csv(f'{self.current_dir}/Data/{self.plot_title}_sorted_mag.dat',
                              index=False,
                              header=False,
@@ -76,6 +86,18 @@ class FittingLibrary():
                               index=False,
                               header=False,
                               )
+
+        time_stamp = f'{time.strftime("%I")}:{time.strftime("%M")}:{time.strftime("%S")} {time.strftime("%p")}'
+
+
+        # Writes out basic info taken from the import
+        self.filehandler = open(f'{self.current_dir}/{self.plot_title}_log.txt', 'w')
+        self.filehandler.write(f'SOURCE ID: {file}\n')
+        self.filehandler.write(f'SOURCE PATH: {data_set_path}\n')
+        self.filehandler.write(f'FITTED BY: {self.user}\n')
+        self.filehandler.write(f'DATE/TIME: {time_stamp}')
+
+
 
         self.filehandler.close()
 
