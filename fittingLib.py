@@ -40,6 +40,7 @@ class FittingLibrary():
         self.poly_order = None
         self.sigma = None
 
+
         self.polytrend = None
         self.polytrend_std = None
         self.sigma_idx = None
