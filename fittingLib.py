@@ -1,5 +1,6 @@
 import time
 import timeit
+from datetime import datetime
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -9,6 +10,12 @@ import getpass
 plot_base_color = 'black'
 poly_trend_color = 'red'
 sigma_trend = 'black'
+
+
+def get_datetime():
+    time_stamp = f'{time.strftime("%I")}:{time.strftime("%M")}:{time.strftime("%S")}{time.strftime("%p")}'
+    date_time = f'[{time_stamp}]'
+    return date_time
 
 
 class FittingLibrary():
@@ -42,7 +49,7 @@ class FittingLibrary():
 
         self.pause_time = pause
 
-        self.filehandler = None
+        self.log_file = None
 
     def import_data(self, file):
         self.filename = file
@@ -64,7 +71,7 @@ class FittingLibrary():
         data_set_path = os.path.join(data_path, file)
         data = pd.read_csv(data_set_path, usecols=(0, 1, 2), delim_whitespace=True, header=None)
 
-        # Creates a new datframe for the sorted magnitude data
+        # Creates a new dataframe for the sorted magnitude data
         mag_data = data.sort_values(by=0, ascending=True, ignore_index=True)
 
         # Creates a new dataframe for the sorted data that has been converted from magnitude to flux
@@ -82,24 +89,18 @@ class FittingLibrary():
                              index=False,
                              header=False,
                              )
+
         self.flux_data.to_csv(f'{self.current_dir}/Data/{self.plot_title}_sorted_flux.dat',
                               index=False,
                               header=False,
                               )
 
-        time_stamp = f'{time.strftime("%I")}:{time.strftime("%M")}:{time.strftime("%S")} {time.strftime("%p")}'
-
-
         # Writes out basic info taken from the import
-        self.filehandler = open(f'{self.current_dir}/{self.plot_title}_log.txt', 'w')
-        self.filehandler.write(f'SOURCE ID: {file}\n')
-        self.filehandler.write(f'SOURCE PATH: {data_set_path}\n')
-        self.filehandler.write(f'FITTED BY: {self.user}\n')
-        self.filehandler.write(f'DATE/TIME: {time_stamp}')
-
-
-
-        self.filehandler.close()
+        self.log_file = open(f'{self.current_dir}/{self.plot_title}_log.txt', 'w')
+        self.log_file.write(f'SOURCE ID: {file}\n')
+        self.log_file.write(f'SOURCE PATH: {data_set_path}\n')
+        self.log_file.write(f'FITTED BY: {self.user}\n')
+        self.log_file.write(f'DATE/TIME: {get_datetime()}')
 
     def plot_mag(self, show=True, save=True):
         fig, ax = plt.subplots(1)
