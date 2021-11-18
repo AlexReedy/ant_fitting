@@ -40,7 +40,6 @@ class FittingLibrary():
         self.poly_order = None
         self.sigma = None
 
-
         self.polytrend = None
         self.polytrend_std = None
         self.sigma_idx = None
@@ -79,7 +78,7 @@ class FittingLibrary():
         # Also sets the error value to be used for the flux data
         flux_data = data.sort_values(by=0, ascending=True, ignore_index=True)
         flux_data[1] = flux_data[1].apply(lambda x: 3631.0 * (10.0 ** (-0.4 * x)))
-        flux_data[2] = .000005
+        flux_data[2] = .000005 # This is a placeholder
 
         self.mag_data = mag_data
         self.flux_data = flux_data
@@ -100,8 +99,9 @@ class FittingLibrary():
         self.log_file = open(f'{self.current_dir}/{self.plot_title}_log.txt', 'w')
         self.log_file.write(f'SOURCE ID: {file}\n')
         self.log_file.write(f'SOURCE PATH: {data_set_path}\n')
-        self.log_file.write(f'FITTED BY: {self.user}\n')
-        self.log_file.write(f'DATE/TIME: {get_datetime()}')
+        self.log_file.write(f'USER: {self.user}\n')
+
+        self.log_file.write(f'TOTAL DETECTIONS: {len(data)}\n\n')
 
     def plot_mag(self, show=True, save=True):
         fig, ax = plt.subplots(1)
@@ -180,6 +180,8 @@ class FittingLibrary():
                                     index=False,
                                     header=False,
                                     )
+        self.log_file.write(f'SIGMA CLIPPING REMOVED: {len(self.sigma_idx)}\n')
+        self.log_file.write(f'SIGMA CLIPPING RETAINED: {len(self.sigma_clip_data)}\n')
 
     def plot_sigma_clip(self, show=True, save=True):
         fig, ax = plt.subplots(1)
