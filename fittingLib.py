@@ -106,7 +106,7 @@ class FittingLibrary():
     def plot_mag(self, show=True, save=True):
         fig, ax = plt.subplots(1)
         fig.set_size_inches(10, 7)
-        fig.suptitle(f'{self.plot_title} Magnitude Light Curve')
+        ax.set_title(f'{self.plot_title} Light Curve [Magnitude]')
         window_name = f'{self.plot_title}_magnitude_light_curve'
         fig.canvas.manager.set_window_title(window_name)
 
@@ -134,7 +134,7 @@ class FittingLibrary():
     def plot_flux(self, show=True, save=True):
         fig, ax = plt.subplots(1)
         fig.set_size_inches(10, 7)
-        fig.suptitle(f'{self.plot_title} Flux Light Curve')
+        ax.set_title(f'{self.plot_title} Light Curve [Flux]')
         window_name = f'{self.plot_title}_flux_light_curve'
         fig.canvas.manager.set_window_title(window_name)
 
@@ -207,7 +207,7 @@ class FittingLibrary():
                 color='black')
 
         if show:
-            ax.set_title(f'{self.plot_title} Fifth Order Polynomial Fit')
+            ax.set_title(f'{self.plot_title} Polynomial Fit')
             window_name = f'{self.plot_title}_polytrend'
             fig.canvas.manager.set_window_title(window_name)
             plt.pause(self.pause_time)
@@ -227,14 +227,19 @@ class FittingLibrary():
                 linewidth='1',
                 color='black')
 
+        ax.fill_between(self.flux_data[0],
+                        self.polytrend - self.polytrend_std,
+                        self.polytrend + self.polytrend_std,
+                        color='whitesmoke')
+
         if show:
-            ax.set_title(f'{self.plot_title} {self.sigma} Sigma Clipping')
+            ax.set_title(f'{self.plot_title} Sigma Clipping')
             window_name = f'{self.plot_title}_sigma_clipping'
             fig.canvas.manager.set_window_title(window_name)
             plt.pause(self.pause_time)
             plt.show(block=False)
         if save:
-            plt.savefig(f'{self.current_dir}/Plots/{self.plot_title}_{self.sigma}sigma_clipping.png')
+            plt.savefig(f'{self.current_dir}/Plots/{self.plot_title}_sigma_clipping.png')
 
         ax.errorbar(clipped_x,
                     clipped_y,
@@ -246,8 +251,8 @@ class FittingLibrary():
                     )
 
         if show:
-            ax.set_title(f'{self.plot_title} {self.sigma} Sigma Clipping [Excluded Values]')
-            window_name = f'{self.plot_title}_{self.sigma}sigma_clipping_show_clipped'
+            ax.set_title(f'{self.plot_title} Sigma Clipping [Show Excluded]')
+            window_name = f'{self.plot_title}_sigma_clipping_show_clipped'
             fig.canvas.manager.set_window_title(window_name)
             plt.pause(self.pause_time)
             plt.show(block=False)
@@ -284,9 +289,17 @@ class FittingLibrary():
         ax.set(xlabel='Modified Julian Day [MJD]', ylabel='Flux [Jy]')
         ax.errorbar(self.sigma_clip_avg_data[0],
                     self.sigma_clip_avg_data[1],
+                    yerr=self.sigma_clip_avg_data[3],
                     linestyle='none',
                     marker='s',
                     ms=3,
                     color='black'
                     )
-        plt.show()
+        if show:
+            ax.set_title(f'{self.plot_title} Averaged Light Curve')
+            window_name = f'{self.plot_title}_averaged'
+            plt.pause(self.pause_time)
+            plt.show(block=False)
+        if save:
+            plt.savefig(f'{self.current_dir}/Plots/{self.plot_title}_averaged.png')
+        plt.close()
