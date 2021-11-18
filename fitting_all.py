@@ -1,6 +1,6 @@
 from fittingLib import *
 import timeit
-fit = FittingLibrary(pause=1)
+fit = FittingLibrary(pause=2)
 
 start = timeit.default_timer()
 counter = 0

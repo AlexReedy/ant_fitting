@@ -282,21 +282,21 @@ class FittingLibrary():
                                         header=False,
                                         )
 
-    def plot_sigma_clip_avg(self,show=True, save=True):
+    def plot_sigma_clip_avg(self, show=True, save=True):
         fig, ax = plt.subplots(1)
         fig.set_size_inches(10, 7)
         ax.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
         ax.set(xlabel='Modified Julian Day [MJD]', ylabel='Flux [Jy]')
         ax.errorbar(self.sigma_clip_avg_data[0],
                     self.sigma_clip_avg_data[1],
-                    yerr=self.sigma_clip_avg_data[3],
+                    yerr=.000005,
                     linestyle='none',
                     marker='s',
                     ms=3,
                     color='black'
                     )
         if show:
-            ax.set_title(f'{self.plot_title} Averaged Light Curve')
+            ax.set_title(f'{self.plot_title} Light Curve [Night Averaged]')
             window_name = f'{self.plot_title}_averaged'
             plt.pause(self.pause_time)
             plt.show(block=False)
