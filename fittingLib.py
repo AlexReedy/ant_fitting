@@ -47,6 +47,8 @@ class FittingLibrary():
 
         self.sigma_clip_avg_data = None
 
+        self.post_avg_peak_idx = None
+
         self.pause_time = pause
 
         self.log_file = None
@@ -187,11 +189,13 @@ class FittingLibrary():
                                     header=False,
                                     )
 
-        self.log_file.write(f'SIGMA CLIPPING REMOVED: {len(self.sigma_idx)} '
-                            f'[{(len(self.sigma_idx) / len(self.flux_data)) * 100.0} %]\n')
+        self.log_file.write(f'SIGMA CLIPPING REMOVED:'
+                            f' {(len(self.sigma_idx) / len(self.flux_data)) * 100.0} % '
+                            f' [{len(self.sigma_idx)} of {len(self.flux_data)}]\n')
 
-        self.log_file.write(f'SIGMA CLIPPING RETAINED: {len(self.sigma_clip_data)} '
-                            f'[{(len(self.sigma_clip_data) / len(self.flux_data)) * 100.0} %]\n')
+        self.log_file.write(f'SIGMA CLIPPING RETAINED:'
+                            f' {(len(self.sigma_clip_data) / len(self.flux_data)) * 100.0} %'
+                            f' [{len(self.sigma_clip_data)} of {len(self.flux_data)}]\n\n')
 
     def plot_sigma_clip(self, show=True, save=True):
         fig, ax = plt.subplots(1)
@@ -293,6 +297,8 @@ class FittingLibrary():
                                         index=False,
                                         header=False,
                                         )
+        self.log_file.write(f'NUMBER OF UNIQUE DAYS: {len(unique_days)}\n')
+        self.log_file.write(f'TOTAL DETECTIONS POST AVERAGING: {len(self.sigma_clip_avg_data)}\n\n')
 
     def plot_sigma_clip_avg(self, show=True, save=True):
         fig, ax = plt.subplots(1)
@@ -315,3 +321,9 @@ class FittingLibrary():
         if save:
             plt.savefig(f'{self.current_dir}/Plots/{self.plot_title}_averaged.png')
         plt.close()
+
+    def get_fit_parameters(self):
+        self.post_avg_peak_idx = self.sigma_clip_avg_data[1].idxmax()
+        self.log_file.write(f'POST AVG PEAK IDX: {self.post_avg_peak_idx}\n')
+        self.log_file.write(f'POST AVG PEAK DATE: {self.sigma_clip_avg_data[0][self.post_avg_peak_idx]}\n')
+        self.log_file.write(f'POST AVG PEAK FLUX: {self.sigma_clip_avg_data[1][self.post_avg_peak_idx]}\n')

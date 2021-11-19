@@ -12,6 +12,7 @@ fit.sigma_clipping()
 fit.plot_sigma_clip(save=True, show=True)
 fit.get_average()
 fit.plot_sigma_clip_avg()
+fit.get_fit_parameters()
 
 
 
