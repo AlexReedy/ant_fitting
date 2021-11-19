@@ -34,7 +34,6 @@ class FittingLibrary():
         self.home_dir = os.path.abspath(path)
         self.current_dir = None
 
-        self.detections = None
         self.mag_data = None
         self.flux_data = None
 
@@ -71,7 +70,9 @@ class FittingLibrary():
         data_path = os.path.abspath('/home/sedmdev/Research/ant_fitting/CRTS_Test_Data')
         data_set_path = os.path.join(data_path, file)
         data = pd.read_csv(data_set_path, usecols=(0, 1, 2), delim_whitespace=True, header=None)
-        self.detections = len(data)
+        start_date = data[0][data[0].idxmin()]
+        end_date = data[0][data[0].idxmax()]
+
 
         # Creates a new dataframe for the sorted magnitude data
         mag_data = data.sort_values(by=0, ascending=True, ignore_index=True)
@@ -101,9 +102,12 @@ class FittingLibrary():
         self.log_file = open(f'{self.current_dir}/{self.plot_title}_log.txt', 'w')
         self.log_file.write(f'SOURCE ID: {file}\n')
         self.log_file.write(f'SOURCE PATH: {data_set_path}\n')
-        self.log_file.write(f'USER: {self.user}\n')
+        self.log_file.write(f'USER: {self.user}\n\n')
 
-        self.log_file.write(f'TOTAL DETECTIONS: {self.detections}\n\n')
+        self.log_file.write(f'TOTAL DETECTIONS: {len(self.flux_data)}\n')
+        self.log_file.write(f'STARTING DATE (MJD): {start_date}\n')
+        self.log_file.write(f'END DATE (MJD): {end_date}\n\n')
+
 
     def plot_mag(self, show=True, save=True):
         fig, ax = plt.subplots(1)
