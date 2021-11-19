@@ -105,8 +105,8 @@ class FittingLibrary():
         self.log_file.write(f'USER: {self.user}\n\n')
 
         self.log_file.write(f'TOTAL DETECTIONS: {len(self.flux_data)}\n')
-        self.log_file.write(f'STARTING DATE (MJD): {start_date}\n')
-        self.log_file.write(f'END DATE (MJD): {end_date}\n\n')
+        self.log_file.write(f'DATE OF FIRST DETECTION (MJD): {start_date}\n')
+        self.log_file.write(f'DATE OF LAST DETECTION (MJD): {end_date}\n\n')
 
 
     def plot_mag(self, show=True, save=True):
