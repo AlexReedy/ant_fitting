@@ -17,6 +17,7 @@ for data_set in fit.data_sets:
 
     fit.get_average()
     fit.plot_sigma_clip_avg(save=True, show=True)
+    fit.get_fit_parameters()
 
     ind_end = timeit.default_timer() - ind_start
 
