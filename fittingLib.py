@@ -26,9 +26,12 @@ class FittingLibrary():
         if not os.path.exists(path):
             os.mkdir(path)
 
+        self.pause_time = pause
+        self.log_file = None
+        self.user = user
+
         self.data_sets = os.listdir(os.path.abspath('/home/sedmdev/Research/ant_fitting/CRTS_Test_Data'))
 
-        self.user = user
         self.filename = None
         self.plot_title = None
         self.home_dir = os.path.abspath(path)
@@ -39,19 +42,17 @@ class FittingLibrary():
 
         self.poly_order = None
         self.sigma = None
-
         self.polytrend = None
         self.polytrend_std = None
         self.sigma_idx = None
         self.sigma_clip_data = None
 
         self.sigma_clip_avg_data = None
-
         self.post_avg_peak_idx = None
-
-        self.pause_time = pause
-
-        self.log_file = None
+        self.rise_data = None
+        self.r_0 = None
+        self.fall_data = None
+        self.r_1 = None
 
     def import_data(self, file):
         self.filename = file
@@ -108,7 +109,8 @@ class FittingLibrary():
 
         self.log_file.write(f'TOTAL DETECTIONS: {len(self.flux_data)}\n')
         self.log_file.write(f'DATE OF FIRST DETECTION (MJD): {start_date}\n')
-        self.log_file.write(f'DATE OF LAST DETECTION (MJD): {end_date}\n\n')
+        self.log_file.write(f'DATE OF LAST DETECTION (MJD): {end_date}\n')
+        self.log_file.write(f'TOTAL TIME (MJD): {end_date - start_date}\n\n')
 
 
     def plot_mag(self, show=True, save=True):
@@ -190,11 +192,11 @@ class FittingLibrary():
                                     )
 
         self.log_file.write(f'SIGMA CLIPPING REMOVED:'
-                            f' {(len(self.sigma_idx) / len(self.flux_data)) * 100.0} % '
+                            f' {int((len(self.sigma_idx) / len(self.flux_data)) * 100.0)} % '
                             f' [{len(self.sigma_idx)} of {len(self.flux_data)}]\n')
 
         self.log_file.write(f'SIGMA CLIPPING RETAINED:'
-                            f' {(len(self.sigma_clip_data) / len(self.flux_data)) * 100.0} %'
+                            f' {int((len(self.sigma_clip_data) / len(self.flux_data)) * 100.0)} %'
                             f' [{len(self.sigma_clip_data)} of {len(self.flux_data)}]\n\n')
 
     def plot_sigma_clip(self, show=True, save=True):
@@ -324,6 +326,77 @@ class FittingLibrary():
 
     def get_fit_parameters(self):
         self.post_avg_peak_idx = self.sigma_clip_avg_data[1].idxmax()
+
+        rise_fall_prct = int(np.round(len(self.sigma_clip_avg_data) * 0.2))
+
+        self.rise_data = self.sigma_clip_avg_data[0:rise_fall_prct]
+        self.r_0 = np.mean(self.rise_data[1])
+
+        self.fall_data = self.sigma_clip_avg_data[len(self.sigma_clip_avg_data) - rise_fall_prct:]
+        self.r_1 = np.mean(self.fall_data[1])
+
         self.log_file.write(f'POST AVG PEAK IDX: {self.post_avg_peak_idx}\n')
         self.log_file.write(f'POST AVG PEAK DATE: {self.sigma_clip_avg_data[0][self.post_avg_peak_idx]}\n')
         self.log_file.write(f'POST AVG PEAK FLUX: {self.sigma_clip_avg_data[1][self.post_avg_peak_idx]}\n')
+        self.log_file.write(f'RISE FALL BUFFER (20% of TOTAL): {rise_fall_prct}%\n')
+        self.log_file.write(f'R_0 VALUE: {self.r_0}\n')
+        self.log_file.write(f'R_1 VALUE: {self.r_1}\n')
+
+    def plot_fitting_parameters(self, show=True, save=True):
+        fig, ax = plt.subplots(1)
+        fig.set_size_inches(10, 7)
+        ax.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
+        ax.set(xlabel='Modified Julian Day [MJD]', ylabel='Flux [Jy]')
+        ax.errorbar(self.sigma_clip_avg_data[0],
+                    self.sigma_clip_avg_data[1],
+                    yerr=.000005,
+                    linestyle='none',
+                    marker='s',
+                    ms=3,
+                    color='black'
+                    )
+
+        ax.errorbar(self.rise_data[0],
+                    self.rise_data[1],
+                    yerr=.000005,
+                    linestyle='none',
+                    marker='s',
+                    ms=3,
+                    color='green'
+                    )
+
+        ax.errorbar(self.fall_data[0],
+                    self.fall_data[1],
+                    yerr=.000005,
+                    linestyle='none',
+                    marker='s',
+                    ms=3,
+                    color='green'
+                    )
+
+        ax.axvline(self.sigma_clip_avg_data[0][self.post_avg_peak_idx],
+                   self.sigma_clip_avg_data[1][self.post_avg_peak_idx],
+                   linewidth=0.5,
+                   color='black')
+
+        ax.hlines(self.r_0, self.sigma_clip_avg_data[0][0],
+                  self.sigma_clip_avg_data[0][self.post_avg_peak_idx],
+                  linewidth=0.5,
+                  color='black')
+
+        ax.hlines(self.r_1,
+                  self.sigma_clip_avg_data[0][self.post_avg_peak_idx],
+                  self.sigma_clip_avg_data[0][len(self.sigma_clip_avg_data)-1],
+                  linewidth=0.5,
+                  color='black')
+
+        if show:
+            ax.set_title(f'{self.plot_title} Fitting Parameters')
+            plt.pause(self.pause_time)
+            #plt.show(block=False)
+            plt.show()
+        if save:
+            plt.savefig(f'{self.current_dir}/Plots/{self.plot_title}_fitting_parameters.png')
+        plt.close()
+
+
