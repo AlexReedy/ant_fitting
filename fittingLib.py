@@ -49,10 +49,17 @@ class FittingLibrary():
 
         self.sigma_clip_avg_data = None
         self.post_avg_peak_idx = None
-        self.rise_data = None
-        self.r_0 = None
-        self.fall_data = None
-        self.r_1 = None
+        self.a_p = None
+        self.t_p = None
+
+        self.gaussian_baseline_data = None
+        self.r_g = None
+        self.a_g = None
+
+
+        self.exponential_baseline_data = None
+        self.r_e = None
+        self.a_e = None
 
     def import_data(self, file):
         self.filename = file
@@ -325,22 +332,36 @@ class FittingLibrary():
         plt.close()
 
     def get_fit_parameters(self):
+        # PEAK FITTING DATA
         self.post_avg_peak_idx = self.sigma_clip_avg_data[1].idxmax()
+        self.t_p = self.sigma_clip_avg_data[0][self.post_avg_peak_idx]
+        self.a_p = self.sigma_clip_avg_data[1][self.post_avg_peak_idx]
 
-        rise_fall_prct = int(np.round(len(self.sigma_clip_avg_data) * 0.2))
+        # PERCENTAGE OF TOTAL DETECTIONS TO BE USED AS BASELINE FOR R_G AND R_#
+        baseline_prct = int(np.round(len(self.sigma_clip_avg_data) * 0.2))
 
-        self.rise_data = self.sigma_clip_avg_data[0:rise_fall_prct]
-        self.r_0 = np.mean(self.rise_data[1])
+        # GAUSSIAN FITTING PARAMETERS
+        self.gaussian_baseline_data = self.sigma_clip_avg_data[0:baseline_prct]
+        self.gaussian_data = self.sigma_clip_avg_data[0:self.post_avg_peak_idx]
+        self.r_g = np.mean(self.gaussian_baseline_data[1])
+        self.a_g = self.a_p - self.r_g
 
-        self.fall_data = self.sigma_clip_avg_data[len(self.sigma_clip_avg_data) - rise_fall_prct:]
-        self.r_1 = np.mean(self.fall_data[1])
+        # EXPONENTIAL DECAY FITTING PARAMETERS
+        self.exponential_baseline_data = self.sigma_clip_avg_data[len(self.sigma_clip_avg_data) - baseline_prct:]
+        self.r_e = np.mean(self.exponential_baseline_data[1])
+        self.a_e = self.a_p - self.r_e
 
         self.log_file.write(f'POST AVG PEAK IDX: {self.post_avg_peak_idx}\n')
-        self.log_file.write(f'POST AVG PEAK DATE: {self.sigma_clip_avg_data[0][self.post_avg_peak_idx]}\n')
-        self.log_file.write(f'POST AVG PEAK FLUX: {self.sigma_clip_avg_data[1][self.post_avg_peak_idx]}\n')
-        self.log_file.write(f'RISE FALL BUFFER (20% of TOTAL): {rise_fall_prct}%\n')
-        self.log_file.write(f'R_0 VALUE: {self.r_0}\n')
-        self.log_file.write(f'R_1 VALUE: {self.r_1}\n')
+        self.log_file.write(f'POST AVG PEAK DATE: {self.t_p}\n')
+        self.log_file.write(f'POST AVG PEAK FLUX: {self.a_p}\n')
+        self.log_file.write(f'RISE FALL BUFFER (20% of TOTAL): {baseline_prct}%\n\n')
+
+        self.log_file.write(f'GAUSSIAN FITTING PARAMETERS:\n')
+        self.log_file.write(f'R_G VALUE: {self.r_g}\n')
+        self.log_file.write(f'A_G VALUE: {self.a_g}\n\n')
+
+        self.log_file.write(f'EXPONENTIAL DECAY FITTING PARAMETERS:\n')
+        self.log_file.write(f'R_E VALUE: {self.r_e}\n')
 
     def plot_fitting_parameters(self, show=True, save=True):
         fig, ax = plt.subplots(1)
@@ -356,8 +377,8 @@ class FittingLibrary():
                     color='black'
                     )
 
-        ax.errorbar(self.rise_data[0],
-                    self.rise_data[1],
+        ax.errorbar(self.gaussian_baseline_data[0],
+                    self.gaussian_baseline_data[1],
                     yerr=.000005,
                     linestyle='none',
                     marker='s',
@@ -365,8 +386,8 @@ class FittingLibrary():
                     color='green'
                     )
 
-        ax.errorbar(self.fall_data[0],
-                    self.fall_data[1],
+        ax.errorbar(self.exponential_baseline_data[0],
+                    self.exponential_baseline_data[1],
                     yerr=.000005,
                     linestyle='none',
                     marker='s',
@@ -379,12 +400,12 @@ class FittingLibrary():
                    linewidth=0.5,
                    color='black')
 
-        ax.hlines(self.r_0, self.sigma_clip_avg_data[0][0],
+        ax.hlines(self.r_g, self.sigma_clip_avg_data[0][0],
                   self.sigma_clip_avg_data[0][self.post_avg_peak_idx],
                   linewidth=0.5,
                   color='black')
 
-        ax.hlines(self.r_1,
+        ax.hlines(self.r_e,
                   self.sigma_clip_avg_data[0][self.post_avg_peak_idx],
                   self.sigma_clip_avg_data[0][len(self.sigma_clip_avg_data)-1],
                   linewidth=0.5,
@@ -398,5 +419,7 @@ class FittingLibrary():
         if save:
             plt.savefig(f'{self.current_dir}/Plots/{self.plot_title}_fitting_parameters.png')
         plt.close()
+
+
 
 
