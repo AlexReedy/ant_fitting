@@ -52,10 +52,13 @@ class FittingLibrary():
         self.a_p = None
         self.t_p = None
 
-        self.gaussian_baseline_data = None
+        self.baseline_prct = 0.2
+
         self.r_g = None
         self.a_g = None
-
+        self.t_g = None
+        self.t_rise = None
+        self.gaussian = None
 
         self.exponential_baseline_data = None
         self.r_e = None
@@ -338,30 +341,35 @@ class FittingLibrary():
         self.a_p = self.sigma_clip_avg_data[1][self.post_avg_peak_idx]
 
         # PERCENTAGE OF TOTAL DETECTIONS TO BE USED AS BASELINE FOR R_G AND R_#
-        baseline_prct = int(np.round(len(self.sigma_clip_avg_data) * 0.2))
+        num_baseline_sources = int(np.round(len(self.sigma_clip_avg_data) * self.baseline_prct))
 
         # GAUSSIAN FITTING PARAMETERS
-        self.gaussian_baseline_data = self.sigma_clip_avg_data[0:baseline_prct]
-        self.gaussian_data = self.sigma_clip_avg_data[0:self.post_avg_peak_idx]
-        self.r_g = np.mean(self.gaussian_baseline_data[1])
+        self.r_g = np.mean(self.sigma_clip_avg_data[1][0:num_baseline_sources])
         self.a_g = self.a_p - self.r_g
+        self.t_g = np.var(self.sigma_clip_avg_data[0][0:self.post_avg_peak_idx])
+        self.t_rise = np.arange(self.sigma_clip_avg_data[0][0], self.sigma_clip_avg_data[0][self.post_avg_peak_idx+1], 1)
+
+        self.gaussian = self.a_g * np.exp(-(((self.t_rise - self.t_p)**2) / (2*(self.t_g ** 2)))) + self.r_g
+
 
         # EXPONENTIAL DECAY FITTING PARAMETERS
-        self.exponential_baseline_data = self.sigma_clip_avg_data[len(self.sigma_clip_avg_data) - baseline_prct:]
+        self.exponential_baseline_data = self.sigma_clip_avg_data[len(self.sigma_clip_avg_data) - num_baseline_sources:]
         self.r_e = np.mean(self.exponential_baseline_data[1])
         self.a_e = self.a_p - self.r_e
 
-        self.log_file.write(f'POST AVG PEAK IDX: {self.post_avg_peak_idx}\n')
-        self.log_file.write(f'POST AVG PEAK DATE: {self.t_p}\n')
-        self.log_file.write(f'POST AVG PEAK FLUX: {self.a_p}\n')
-        self.log_file.write(f'RISE FALL BUFFER (20% of TOTAL): {baseline_prct}%\n\n')
+        self.log_file.write(f'PEAK FITTING PARAMETERS (SIGMA CLIPPED AVERAGED DATA):\n')
+        self.log_file.write(f' -> PEAK IDX: {self.post_avg_peak_idx}\n')
+        self.log_file.write(f' -> PEAK DATE: {self.t_p}\n')
+        self.log_file.write(f' -> PEAK FLUX: {self.a_p}\n')
+        self.log_file.write(f' -> RISE FALL BUFFER ({self.baseline_prct * 100}% of TOTAL): '
+                            f'{num_baseline_sources} Detections\n\n')
 
         self.log_file.write(f'GAUSSIAN FITTING PARAMETERS:\n')
-        self.log_file.write(f'R_G VALUE: {self.r_g}\n')
-        self.log_file.write(f'A_G VALUE: {self.a_g}\n\n')
-
-        self.log_file.write(f'EXPONENTIAL DECAY FITTING PARAMETERS:\n')
-        self.log_file.write(f'R_E VALUE: {self.r_e}\n')
+        self.log_file.write(f' -> GAUSSIAN STARTING DATE: {self.sigma_clip_avg_data[0][0]}\n')
+        self.log_file.write(f' -> GAUSSIAN ENDING DATE: {self.sigma_clip_avg_data[0][self.post_avg_peak_idx]}\n')
+        self.log_file.write(f' -> R_G VALUE: {self.r_g}\n')
+        self.log_file.write(f' -> A_G VALUE: {self.a_g}\n')
+        self.log_file.write(f' -> T_G VALUE: {self.t_g}\n\n')
 
     def plot_fitting_parameters(self, show=True, save=True):
         fig, ax = plt.subplots(1)
@@ -377,6 +385,10 @@ class FittingLibrary():
                     color='black'
                     )
 
+        ax.plot(self.t_rise,
+                self.gaussian)
+
+        '''
         ax.errorbar(self.gaussian_baseline_data[0],
                     self.gaussian_baseline_data[1],
                     yerr=.000005,
@@ -394,6 +406,7 @@ class FittingLibrary():
                     ms=3,
                     color='green'
                     )
+        '''
 
         ax.axvline(self.sigma_clip_avg_data[0][self.post_avg_peak_idx],
                    self.sigma_clip_avg_data[1][self.post_avg_peak_idx],
