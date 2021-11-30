@@ -172,7 +172,6 @@ class FittingLibrary():
     def sigma_clipping(self):
         # Returns the coefiicients of the polynomial fit
         poly_coefficients = np.polyfit(self.flux_data[0], self.flux_data[1], self.poly_degree)
-        poly_coefficients_varlist = ['a', 'b', 'c', 'd', 'e']
 
         self.polytrend = np.polyval(poly_coefficients, self.flux_data[0])
         self.polytrend_sigma = self.sigma_coefficient * np.std(self.polytrend)

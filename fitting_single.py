@@ -7,6 +7,7 @@ ant_test_id = '1118060050249.dat'
 fit.import_data(file=ant_confirm_id)
 fit.plot_raw()
 fit.plot_mag()
+fit.plot_flux()
 
 '''
 fit.plot_mag(save=True, show=False)

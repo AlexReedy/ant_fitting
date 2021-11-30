@@ -150,13 +150,13 @@ class FittingLibrary():
                             f' > Total Detections: {self.mag_data_length}\n'
                             f' > Peak Index: {self.mag_data_peak_idx}\n'
                             f' > Peak Time (tp,mag): {self.mag_data_peak_list[0]} [MJD]\n'
-                            f' > Peak Amplitude (Ap,mag): {self.mag_data_peak_list[1]} [Mag]\n')
+                            f' > Peak Amplitude (Ap,mag): {self.mag_data_peak_list[1]} [Mag]\n\n')
 
         self.log_file.write(f'FlUX DATA INFORMATION\n'
                             f' > Total Detections: {self.flux_data_length}\n'
                             f' > Peak Index: {self.flux_data_peak_idx}\n'
-                            f' > Peak Time (tp,mag): {self.flux_data_peak_list[0]} [MJD]\n'
-                            f' > Peak Amplitude (Ap,mag): {self.flux_data_peak_list[1]} [Jy]\n')
+                            f' > Peak Time (tp,flux): {self.flux_data_peak_list[0]} [MJD]\n'
+                            f' > Peak Amplitude (Ap,flux): {self.flux_data_peak_list[1]} [Jy]\n\n')
 
     def plot_raw(self, show=True, save=True):
         fig, ax = plt.subplots(1)
@@ -207,6 +207,7 @@ class FittingLibrary():
 
         ax.set(xlabel='Modified Julian Day [MJD]', ylabel='Magnitude')
         ax.invert_yaxis()
+        # Plots the Light Curve
         ax.errorbar(self.mag_data[0],
                     self.mag_data[1],
                     yerr=self.mag_data[2],
@@ -235,3 +236,65 @@ class FittingLibrary():
             plt.close()
 
         plt.close()
+
+    def plot_flux(self, show=True, save=True):
+        fig, ax = plt.subplots(1)
+        fig.set_size_inches(10, 7)
+        ax.set_title(f'{self.plot_title} Light Curve [Flux]')
+        window_name = f'{self.plot_title}_flux_light_curve'
+        fig.canvas.manager.set_window_title(window_name)
+
+        ax.set(xlabel='Modified Julian Day [MJD]', ylabel='Flux [Jy]')
+        ax.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
+        ax.errorbar(self.flux_data[0],
+                    self.flux_data[1],
+                    yerr=self.flux_data[2],
+                    linestyle='none',
+                    marker='s',
+                    ms=3,
+                    color='black'
+                    )
+
+        # Plots the Peak Location:
+        ax.errorbar(self.flux_data[0][self.flux_data_peak_idx],
+                    self.flux_data[1][self.flux_data_peak_idx],
+                    yerr=self.flux_data[2][self.flux_data_peak_idx],
+                    linestyle='none',
+                    marker='s',
+                    ms=5,
+                    color='red'
+                    )
+
+        if save:
+            plt.savefig(f'{self.current_dir}/Plots/{window_name}.png')
+
+        if show:
+            plt.pause(self.pause_time)
+            plt.show(block=False)
+            plt.close()
+
+        plt.close()
+
+    def sigma_clipping(self):
+        # Returns the coefiicients of the polynomial fit
+        poly_coefficients = np.polyfit(self.flux_data[0], self.flux_data[1], self.poly_degree)
+
+        self.polytrend = np.polyval(poly_coefficients, self.flux_data[0])
+        self.polytrend_sigma = self.sigma_coefficient * np.std(self.polytrend)
+
+        self.sigma_idx = []
+        for i in range(len(self.flux_data)):
+            if (self.flux_data[1][i] - self.flux_data[2][i]) >= self.polytrend[i] + self.polytrend_sigma:
+                self.sigma_idx.append(i)
+            if (self.flux_data[1][i] + self.flux_data[2][i]) <= self.polytrend[i] - self.polytrend_sigma:
+                self.sigma_idx.append(i)
+
+        self.sigma_clip_data = self.flux_data.drop(labels=self.sigma_idx, axis=0, inplace=False).reset_index(drop=True)
+
+        self.sigma_clip_data.to_csv(f'{self.current_dir}/Data/{self.plot_title}_sigma_clipped.dat',
+                                    index=False,
+                                    header=False,
+                                    )
+
+        self.sigma_excluded = [len(self.sigma_idx), ((len(self.sigma_idx) / self.total_detections) * 100.0)]
+        self.sigma_retained = [len(self.sigma_clip_data), ((len(self.sigma_clip_data) / self.total_detections) * 100.0)]
