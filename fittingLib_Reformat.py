@@ -136,7 +136,7 @@ class FittingLibrary():
         self.log_file = open(f'{self.current_dir}/{self.plot_title}_log.txt', 'w')
         self.log_file.write(f'RUN INFORMATION\n'
                             f'Source ID: {file}\n'
-                            f'Source Path: {data_set_path}\n\n'
+                            f'Source Path: {data_set_path}\n'
                             f'Date: {get_datetime()[0]} @ {get_datetime()[1]}\n'
                             f'User: {self.user}\n\n')
 
@@ -278,7 +278,6 @@ class FittingLibrary():
     def sigma_clipping(self):
         # Returns the coefiicients of the polynomial fit
         poly_coefficients = np.polyfit(self.flux_data[0], self.flux_data[1], self.poly_degree)
-
         self.polytrend = np.polyval(poly_coefficients, self.flux_data[0])
         self.polytrend_sigma = self.sigma_coefficient * np.std(self.polytrend)
 
@@ -290,11 +289,29 @@ class FittingLibrary():
                 self.sigma_idx.append(i)
 
         self.sigma_clip_data = self.flux_data.drop(labels=self.sigma_idx, axis=0, inplace=False).reset_index(drop=True)
-
         self.sigma_clip_data.to_csv(f'{self.current_dir}/Data/{self.plot_title}_sigma_clipped.dat',
                                     index=False,
                                     header=False,
                                     )
 
-        self.sigma_excluded = [len(self.sigma_idx), ((len(self.sigma_idx) / self.total_detections) * 100.0)]
-        self.sigma_retained = [len(self.sigma_clip_data), ((len(self.sigma_clip_data) / self.total_detections) * 100.0)]
+        self.sigma_excluded = [len(self.sigma_idx), ((len(self.sigma_idx) / self.flux_data_length) * 100.0)]
+        self.sigma_retained = [len(self.sigma_clip_data), ((len(self.sigma_clip_data) / self.flux_data_length) * 100.0)]
+
+        self.log_file.write(f'POLYNOMIAL FITTING INFORMATION\n'
+                            f' > Polynomial Format: (ax^5) + (bx^4) + (cx^3) + (dx^2) + (ex) + (f)\n'
+                            f' > Degree: {self.poly_degree}\n'
+                            f' > Calculated Sigma: {self.polytrend_sigma}\n'
+                            f' > Coefficients (From Highest to Lowest Power):\n'
+                            f'    a = {poly_coefficients[0]}\n'
+                            f'    b = {poly_coefficients[1]}\n'
+                            f'    c = {poly_coefficients[2]}\n'
+                            f'    d = {poly_coefficients[3]}\n'
+                            f'    e = {poly_coefficients[4]}\n'
+                            f'    f = {poly_coefficients[5]}\n\n'
+                            )
+
+        self.log_file.write(f'SIGMA CLIPPING INFORMATION\n'
+                            f' > Clipping Bound: (+/-) {self.sigma_coefficient} Sigma\n'
+                            f' > Excluded {self.sigma_excluded[0]} of {self.flux_data_length} Detections ({self.sigma_excluded[1]} %)\n'
+                            f' > Retained {self.sigma_retained[0]} of {self.flux_data_length} Detections ({self.sigma_retained[1]} %)\n'
+                            )
