@@ -183,7 +183,10 @@ class FittingLibrary():
         self.poly_order = poly_order
         self.sigma = sigma
 
+        # Returns the coefiicients of the polynomial fit
         trend = np.polyfit(self.flux_data[0], self.flux_data[1], self.poly_order)
+        print(trend)
+
         self.polytrend = np.polyval(trend, self.flux_data[0])
         self.polytrend_std = self.sigma * np.std(self.polytrend)
 
