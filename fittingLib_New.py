@@ -13,13 +13,14 @@ sigma_trend = 'black'
 
 
 def get_datetime():
-    time_stamp = f'{time.strftime("%I")}:{time.strftime("%M")}:{time.strftime("%S")}{time.strftime("%p")}'
-    date_time = f'[{time_stamp}]'
+    time_stamp = f'{time.strftime("%a")} {time.strftime("%b")} {time.strftime("%-d")} {time.strftime("%Y")} ' \
+                 f'{time.strftime("%I")}:{time.strftime("%M")}:{time.strftime("%S")}{time.strftime("%p")}'
+    date_time = f'{time_stamp}'
     return date_time
 
 
 class FittingLibrary():
-    def __init__(self, pause=0.5, user='ahreedy', poly_order=5, sigma_coefficient=5, offset_prct=0.02):
+    def __init__(self, pause=0.5, user='ahreedy', poly_degree=5, sigma_coefficient=5, offset_prct=0.02):
 
         # Checks to see if a directory for all fitting files exists, if not then it makes one in the users home folder
         path = f'/home/{getpass.getuser()}/ANT_Fitting'
@@ -37,11 +38,12 @@ class FittingLibrary():
         self.home_dir = os.path.abspath(path)
         self.current_dir = None
 
+
         self.total_detections = None
         self.mag_data = None
         self.flux_data = None
 
-        self.poly_order = poly_order
+        self.poly_degree = poly_degree
         self.sigma_coefficient = sigma_coefficient
         self.polytrend = None
         self.polytrend_sigma = None
@@ -56,16 +58,6 @@ class FittingLibrary():
         self.t_p = None
 
         self.offset_prct = offset_prct
-
-        self.r_g = None
-        self.a_g = None
-        self.t_g = None
-        self.t_rise = None
-        self.gaussian = None
-
-        self.exponential_baseline_data = None
-        self.r_e = None
-        self.a_e = None
 
     def import_data(self, file):
         self.filename = file
@@ -101,6 +93,7 @@ class FittingLibrary():
 
         self.mag_data = mag_data
         self.flux_data = flux_data
+        self.total_detections = len(flux_data)
 
         # Saves two new data frames. One for the sorted magnitude data, and one for the sorted flux data, saves to
         # the "Data" subdirectory
@@ -118,13 +111,7 @@ class FittingLibrary():
         self.log_file = open(f'{self.current_dir}/{self.plot_title}_log.txt', 'w')
         self.log_file.write(f'SOURCE ID: {file}\n')
         self.log_file.write(f'SOURCE PATH: {data_set_path}\n')
-        self.log_file.write(f'USER: {self.user}\n\n')
-
-        self.log_file.write(f'TOTAL DETECTIONS: {len(self.flux_data)}\n')
-        self.log_file.write(f'DATE OF FIRST DETECTION (MJD): {start_date}\n')
-        self.log_file.write(f'DATE OF LAST DETECTION (MJD): {end_date}\n')
-        self.log_file.write(f'TOTAL TIME (MJD): {end_date - start_date}\n\n')
-
+        self.log_file.write(f'RUN:{get_datetime()}\n\n')
 
     def plot_mag(self, show=True, save=True):
         fig, ax = plt.subplots(1)
@@ -184,7 +171,7 @@ class FittingLibrary():
 
     def sigma_clipping(self):
         # Returns the coefiicients of the polynomial fit
-        poly_coefficients = np.polyfit(self.flux_data[0], self.flux_data[1], self.poly_order)
+        poly_coefficients = np.polyfit(self.flux_data[0], self.flux_data[1], self.poly_degree)
         poly_coefficients_varlist = ['a', 'b', 'c', 'd', 'e']
 
         self.polytrend = np.polyval(poly_coefficients, self.flux_data[0])
@@ -203,22 +190,22 @@ class FittingLibrary():
                                     index=False,
                                     header=False,
                                     )
-        self.sigma_excluded = [len(self.sigma_idx), int((len(self.sigma_idx) / len(self.flux_data)) * 100.0)]
-        self.sigma_retained = [len(self.sigma_clip_data), int((len(self.sigma_clip_data) / len(self.flux_data)) * 100.0)]
 
-        self.log_file.write(f'POLYNOMIAL ORDER: {self.poly_order} \n')
-        self.log_file.write(f'POLYNOMIAL COEFFICIENTS: \n')
-        for i in range(self.poly_order):
-            self.log_file.write(f' {poly_coefficients_varlist[i]}: {poly_coefficients[i]}\n')
+        self.sigma_excluded = [len(self.sigma_idx), ((len(self.sigma_idx) / self.total_detections) * 100.0)]
+        self.sigma_retained = [len(self.sigma_clip_data), ((len(self.sigma_clip_data) / self.total_detections) * 100.0)]
 
-        self.log_file.write(f'\nSIGMA CLIPPING PERFORMED AT: +/- {self.sigma_coefficient} Sigma\n')
-        self.log_file.write(f' CLIPPING EXCLUDED {self.sigma_excluded[0]} of :'
-                            f' {self.sigma_excluded[1]} % ')
+        self.log_file.write(f'POLYNOMIAL ORDER: {self.poly_degree} \n')
+        self.log_file.write(f'COEFFICIENTS FROM HIGHEST TO LOWEST POWER:\n')
+        for i in range(self.poly_degree):
+            self.log_file.write(f' > {5-i}th POWER COEFFICIENT: {poly_coefficients[i]}\n')
+        self.log_file.write(f'POLY FIT SIGMA: {self.polytrend_sigma}\n\n')
 
+        self.log_file.write(f'SIGMA COEFFICIENT: {self.sigma_coefficient}\n')
+        self.log_file.write(f'CLIPPING EXCLUDED [{self.sigma_excluded[0]} of {self.total_detections}] DETECTIONS:'
+                            f' {self.sigma_excluded[1]} %\n')
 
-        self.log_file.write(f' > CLIPPING RETAINED:'
-                            f' {int((len(self.sigma_clip_data) / len(self.flux_data)) * 100.0)} %'
-                            f' [{len(self.sigma_clip_data)} of {len(self.flux_data)}]\n\n')
+        self.log_file.write(f'CLIPPING RETAINED [{self.sigma_retained[0]} of {self.total_detections}] DETECTIONS:'
+                            f' {self.sigma_retained[1]} %\n\n')
 
     def plot_sigma_clip(self, show=True, save=True):
         fig, ax = plt.subplots(1)
