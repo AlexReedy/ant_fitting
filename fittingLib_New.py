@@ -19,7 +19,7 @@ def get_datetime():
 
 
 class FittingLibrary():
-    def __init__(self, pause=0.5, user='ahreedy'):
+    def __init__(self, pause=0.5, user='ahreedy', poly_order=5, sigma_coefficient=5, offset_prct=0.02):
 
         # Checks to see if a directory for all fitting files exists, if not then it makes one in the users home folder
         path = f'/home/{getpass.getuser()}/ANT_Fitting'
@@ -37,22 +37,25 @@ class FittingLibrary():
         self.home_dir = os.path.abspath(path)
         self.current_dir = None
 
+        self.total_detections = None
         self.mag_data = None
         self.flux_data = None
 
-        self.poly_order = None
-        self.sigma = None
+        self.poly_order = poly_order
+        self.sigma_coefficient = sigma_coefficient
         self.polytrend = None
-        self.polytrend_std = None
+        self.polytrend_sigma = None
         self.sigma_idx = None
         self.sigma_clip_data = None
+        self.sigma_excluded = None
+        self.sigma_retained = None
 
         self.sigma_clip_avg_data = None
         self.post_avg_peak_idx = None
         self.a_p = None
         self.t_p = None
 
-        self.baseline_prct = 0.2
+        self.offset_prct = offset_prct
 
         self.r_g = None
         self.a_g = None
@@ -94,7 +97,7 @@ class FittingLibrary():
         # Also sets the error value to be used for the flux data
         flux_data = data.sort_values(by=0, ascending=True, ignore_index=True)
         flux_data[1] = flux_data[1].apply(lambda x: 3631.0 * (10.0 ** (-0.4 * x)))
-        flux_data[2] = .000005 # This is a placeholder
+        flux_data[2] = .000005  # This is a placeholder
 
         self.mag_data = mag_data
         self.flux_data = flux_data
@@ -179,22 +182,19 @@ class FittingLibrary():
 
         plt.close()
 
-    def sigma_clipping(self, poly_order=5, sigma=5):
-        self.poly_order = poly_order
-        self.sigma = sigma
-
+    def sigma_clipping(self):
         # Returns the coefiicients of the polynomial fit
-        trend = np.polyfit(self.flux_data[0], self.flux_data[1], self.poly_order)
-        print(trend)
+        poly_coefficients = np.polyfit(self.flux_data[0], self.flux_data[1], self.poly_order)
+        poly_coefficients_varlist = ['a', 'b', 'c', 'd', 'e']
 
-        self.polytrend = np.polyval(trend, self.flux_data[0])
-        self.polytrend_std = self.sigma * np.std(self.polytrend)
+        self.polytrend = np.polyval(poly_coefficients, self.flux_data[0])
+        self.polytrend_sigma = self.sigma_coefficient * np.std(self.polytrend)
 
         self.sigma_idx = []
         for i in range(len(self.flux_data)):
-            if (self.flux_data[1][i] - self.flux_data[2][i]) >= self.polytrend[i] + self.polytrend_std:
+            if (self.flux_data[1][i] - self.flux_data[2][i]) >= self.polytrend[i] + self.polytrend_sigma:
                 self.sigma_idx.append(i)
-            if (self.flux_data[1][i] + self.flux_data[2][i]) <= self.polytrend[i] - self.polytrend_std:
+            if (self.flux_data[1][i] + self.flux_data[2][i]) <= self.polytrend[i] - self.polytrend_sigma:
                 self.sigma_idx.append(i)
 
         self.sigma_clip_data = self.flux_data.drop(labels=self.sigma_idx, axis=0, inplace=False).reset_index(drop=True)
@@ -203,12 +203,20 @@ class FittingLibrary():
                                     index=False,
                                     header=False,
                                     )
+        self.sigma_excluded = [len(self.sigma_idx), int((len(self.sigma_idx) / len(self.flux_data)) * 100.0)]
+        self.sigma_retained = [len(self.sigma_clip_data), int((len(self.sigma_clip_data) / len(self.flux_data)) * 100.0)]
 
-        self.log_file.write(f'SIGMA CLIPPING REMOVED:'
-                            f' {int((len(self.sigma_idx) / len(self.flux_data)) * 100.0)} % '
-                            f' [{len(self.sigma_idx)} of {len(self.flux_data)}]\n')
+        self.log_file.write(f'POLYNOMIAL ORDER: {self.poly_order} \n')
+        self.log_file.write(f'POLYNOMIAL COEFFICIENTS: \n')
+        for i in range(self.poly_order):
+            self.log_file.write(f' {poly_coefficients_varlist[i]}: {poly_coefficients[i]}\n')
 
-        self.log_file.write(f'SIGMA CLIPPING RETAINED:'
+        self.log_file.write(f'\nSIGMA CLIPPING PERFORMED AT: +/- {self.sigma_coefficient} Sigma\n')
+        self.log_file.write(f' CLIPPING EXCLUDED {self.sigma_excluded[0]} of :'
+                            f' {self.sigma_excluded[1]} % ')
+
+
+        self.log_file.write(f' > CLIPPING RETAINED:'
                             f' {int((len(self.sigma_clip_data) / len(self.flux_data)) * 100.0)} %'
                             f' [{len(self.sigma_clip_data)} of {len(self.flux_data)}]\n\n')
 
@@ -247,20 +255,20 @@ class FittingLibrary():
             plt.savefig(f'{self.current_dir}/Plots/{self.plot_title}_polytrend.png')
 
         ax.plot(self.flux_data[0],
-                self.polytrend - self.polytrend_std,
+                self.polytrend - self.polytrend_sigma,
                 linestyle='--',
                 linewidth='1',
                 color='black')
 
         ax.plot(self.flux_data[0],
-                self.polytrend + self.polytrend_std,
+                self.polytrend + self.polytrend_sigma,
                 linestyle='--',
                 linewidth='1',
                 color='black')
 
         ax.fill_between(self.flux_data[0],
-                        self.polytrend - self.polytrend_std,
-                        self.polytrend + self.polytrend_std,
+                        self.polytrend - self.polytrend_sigma,
+                        self.polytrend + self.polytrend_sigma,
                         color='whitesmoke')
 
         if show:
