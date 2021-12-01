@@ -88,8 +88,15 @@ class FittingLibrary():
         self.avg_data_time_range_list = None
 
         # Variables For Determining Fit Parameters (NOTE: THESE ALL DEPEND ON THE AVERAGED DATA SET!)
+        # General:
         self.offset_prct = (offset_prct / 100)
-        self.offset_detections = None
+        self.num_offset_detections = None
+
+        # Gaussian:
+        self.gaussian_data = None
+        self.r_g = None
+        self.a_g = None
+        self.t_g = None
 
     def import_data(self, file):
         self.filename = file
@@ -488,7 +495,7 @@ class FittingLibrary():
         # Plots the Peak Location:
         ax.errorbar(self.avg_data[0][self.avg_data_peak_idx],
                     self.avg_data[1][self.avg_data_peak_idx],
-                    yerr=self.flux_data[2][self.avg_data_peak_idx],
+                    yerr=self.avg_data[2][self.avg_data_peak_idx],
                     linestyle='none',
                     marker='s',
                     ms=5,
@@ -506,7 +513,50 @@ class FittingLibrary():
         plt.close()
 
     def get_fit_parameters(self):
-        self.offset_detections = int(np.round(self.avg_data_length * self.offset_prct))
+        self.num_offset_detections = int(np.round(self.avg_data_length * self.offset_prct))
+
+        # Gaussian Parameters:
+        self.gaussian_data = self.avg_data[0:self.avg_data_peak_idx+1]
+        self.r_g = np.mean(self.gaussian_data[1][0:self.num_offset_detections])
+        self.a_g = self.gaussian_data[1] - self.r_g
+        self.t_g = np.var(self.gaussian_data[0][0:self.avg_data_peak_idx])
+
+        self.log_file.write(f'GAUSSIAN FITTING PARAMETERS\n'
+                            f' > Number of Detections:')
+
+    def plot_fitting_parameters(self, show=True, save=True):
+        fig, ax = plt.subplots(1)
+        fig.set_size_inches(10, 7)
+        ax.set_title(f'{self.plot_title} Light Curve [Fit Parameters]')
+        window_name = f'{self.plot_title}_avg_fit_light_curve'
+        fig.canvas.manager.set_window_title(window_name)
+
+        ax.set(xlabel='Modified Julian Day [MJD]', ylabel='Flux [Jy]')
+        ax.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
+
+        # Plots The Averaged Data Set
+        ax.errorbar(self.avg_data[0],
+                    self.avg_data[1],
+                    yerr=self.avg_data[2],
+                    linestyle='none',
+                    marker='s',
+                    ms=3,
+                    color='black'
+                    )
+
+        # Plots the Horizontal and Vertical Lines for the Peak
+
+
+        if save:
+            plt.savefig(f'{self.current_dir}/Plots/{window_name}.png')
+
+        if show:
+            plt.pause(self.pause_time)
+            plt.show(block=False)
+            plt.close()
+
+        plt.close()
+
 
 
 
