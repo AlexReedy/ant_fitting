@@ -24,7 +24,12 @@ def get_datetime():
     return date_stamp, time_stamp
 
 class FittingLibrary():
-    def __init__(self, pause=0.5, user='default', poly_degree=5, sigma_coefficient=5, offset_prct=0.02):
+    def __init__(self, pause=0.5,
+                 user='default',
+                 poly_degree=5,
+                 sigma_coefficient=5,
+                 offset_prct=20,
+                 flux_error=.000005):
 
         # Checks to see if a directory for all fitting files exists, if not then it makes one in the users home folder
         path = f'/home/{getpass.getuser()}/ANT_Fitting'
@@ -34,6 +39,7 @@ class FittingLibrary():
         self.pause_time = pause
         self.log_file = None
         self.user = user
+        self.flux_error = flux_error
 
         self.data_sets = os.listdir(os.path.abspath('/home/sedmdev/Research/ant_fitting/CRTS_Test_Data'))
         self.filename = None
@@ -63,17 +69,27 @@ class FittingLibrary():
         self.sigma_coefficient = sigma_coefficient
         self.polytrend = None
         self.polytrend_sigma = None
+
         self.sigma_idx = None
-        self.sigma_clip_data = None
         self.sigma_excluded = None
         self.sigma_retained = None
 
-        self.sigma_clip_avg_data = None
-        self.post_avg_peak_idx = None
-        self.a_p = None
-        self.t_p = None
+        self.sigma_clip_data = None
+        self.sigma_clip_data_length = None
+        self.sigma_clip_data_peak_idx = None
+        self.sigma_clip_data_peak_list = None
+        self.sigma_clip_data_time_range_list = None
 
-        self.offset_prct = offset_prct
+        # Variables for the Sigma Clipped and Averaged Data Frame
+        self.avg_data = None
+        self.avg_data_length = None
+        self.avg_data_peak_idx = None
+        self.avg_data_peak_list = None
+        self.avg_data_time_range_list = None
+
+        # Variables For Determining Fit Parameters (NOTE: THESE ALL DEPEND ON THE AVERAGED DATA SET!)
+        self.offset_prct = (offset_prct / 100)
+        self.offset_detections = None
 
     def import_data(self, file):
         self.filename = file
@@ -100,7 +116,7 @@ class FittingLibrary():
         # Also sets the error value to be used for the flux data
         flux_data = data.sort_values(by=0, ascending=True, ignore_index=True)
         flux_data[1] = flux_data[1].apply(lambda x: 3631.0 * (10.0 ** (-0.4 * x)))
-        flux_data[2] = .000005  # This is a placeholder
+        flux_data[2] = self.flux_error  # This is a placeholder
 
         self.raw_data = data
         self.raw_data_length = len(self.raw_data)
@@ -138,25 +154,33 @@ class FittingLibrary():
                             f'Source ID: {file}\n'
                             f'Source Path: {data_set_path}\n'
                             f'Date: {get_datetime()[0]} @ {get_datetime()[1]}\n'
-                            f'User: {self.user}\n\n')
+                            f'User: {self.user}\n'
+                            f'\n'
+                            )
 
         self.log_file.write(f'RAW DATA INFORMATION\n'
                             f' > Total Detections: {self.raw_data_length}\n'
                             f' > Peak Index: {self.raw_data_peak_idx}\n'
-                            f' > Peak Time (tp,raw): {self.raw_data_peak_list[0]} [MJD]\n'
-                            f' > Peak Amplitude (Ap,raw): {self.raw_data_peak_list[1]} [Mag]\n\n')
+                            f' > Peak Time (tp,raw): {self.raw_data_peak_list[0]} MJD\n'
+                            f' > Peak Amplitude (Ap,raw): {self.raw_data_peak_list[1]} Mag\n'
+                            f'\n'
+                            )
 
         self.log_file.write(f'MAGNITUDE DATA INFORMATION\n'
                             f' > Total Detections: {self.mag_data_length}\n'
                             f' > Peak Index: {self.mag_data_peak_idx}\n'
-                            f' > Peak Time (tp,mag): {self.mag_data_peak_list[0]} [MJD]\n'
-                            f' > Peak Amplitude (Ap,mag): {self.mag_data_peak_list[1]} [Mag]\n\n')
+                            f' > Peak Time (tp,mag): {self.mag_data_peak_list[0]} MJD\n'
+                            f' > Peak Amplitude (Ap,mag): {self.mag_data_peak_list[1]} Mag\n'
+                            f'\n'
+                            )
 
         self.log_file.write(f'FlUX DATA INFORMATION\n'
                             f' > Total Detections: {self.flux_data_length}\n'
                             f' > Peak Index: {self.flux_data_peak_idx}\n'
-                            f' > Peak Time (tp,flux): {self.flux_data_peak_list[0]} [MJD]\n'
-                            f' > Peak Amplitude (Ap,flux): {self.flux_data_peak_list[1]} [Jy]\n\n')
+                            f' > Peak Time (tp,flux): {self.flux_data_peak_list[0]} MJD\n'
+                            f' > Peak Amplitude (Ap,flux): {self.flux_data_peak_list[1]} Jy\n'
+                            f'\n'
+                            )
 
     def plot_raw(self, show=True, save=True):
         fig, ax = plt.subplots(1)
@@ -289,6 +313,11 @@ class FittingLibrary():
                 self.sigma_idx.append(i)
 
         self.sigma_clip_data = self.flux_data.drop(labels=self.sigma_idx, axis=0, inplace=False).reset_index(drop=True)
+        self.sigma_clip_data_length = len(self.sigma_clip_data)
+        self.sigma_clip_data_peak_idx = self.sigma_clip_data[1].idxmax()
+        self.sigma_clip_data_peak_list = [self.sigma_clip_data[0][self.sigma_clip_data_peak_idx],
+                                          self.sigma_clip_data[1][self.sigma_clip_data_peak_idx]]
+
         self.sigma_clip_data.to_csv(f'{self.current_dir}/Data/{self.plot_title}_sigma_clipped.dat',
                                     index=False,
                                     header=False,
@@ -307,11 +336,178 @@ class FittingLibrary():
                             f'    c = {poly_coefficients[2]}\n'
                             f'    d = {poly_coefficients[3]}\n'
                             f'    e = {poly_coefficients[4]}\n'
-                            f'    f = {poly_coefficients[5]}\n\n'
+                            f'    f = {poly_coefficients[5]}\n'
+                            f'\n'
                             )
 
         self.log_file.write(f'SIGMA CLIPPING INFORMATION\n'
                             f' > Clipping Bound: (+/-) {self.sigma_coefficient} Sigma\n'
                             f' > Excluded {self.sigma_excluded[0]} of {self.flux_data_length} Detections ({self.sigma_excluded[1]} %)\n'
                             f' > Retained {self.sigma_retained[0]} of {self.flux_data_length} Detections ({self.sigma_retained[1]} %)\n'
+                            f'\n'
                             )
+
+        self.log_file.write(f'SIGMA CLIPPED DATA INFORMATION\n'
+                            f' > Total Detections: {self.sigma_clip_data_length}\n'
+                            f' > Peak Index: {self.sigma_clip_data_peak_idx}\n'
+                            f' > Peak Time (tp,sig): {self.sigma_clip_data_peak_list[0]} MJD\n'
+                            f' > Peak Amplitude (Ap,sig): {self.sigma_clip_data_peak_list[1]} Jy\n'
+                            f'\n'
+                            )
+
+
+    def plot_sigma_clip(self, show=True, save=True):
+        fig, ax = plt.subplots(1)
+        fig.set_size_inches(10, 7)
+
+        clipped_x = self.flux_data[0][self.sigma_idx]
+        clipped_y = self.flux_data[1][self.sigma_idx]
+        clipped_err = self.flux_data[2][self.sigma_idx]
+
+        ax.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
+        ax.set(xlabel='Modified Julian Day [MJD]', ylabel='Flux [Jy]')
+        ax.errorbar(self.sigma_clip_data[0],
+                    self.sigma_clip_data[1],
+                    yerr=self.sigma_clip_data[2],
+                    linestyle='none',
+                    marker='s',
+                    ms=3,
+                    color='black'
+                    )
+
+        ax.plot(self.flux_data[0],
+                self.polytrend,
+                linestyle='--',
+                linewidth='1',
+                color='black')
+
+        if show:
+            ax.set_title(f'{self.plot_title} Polynomial Fit')
+            window_name = f'{self.plot_title}_polytrend'
+            fig.canvas.manager.set_window_title(window_name)
+            plt.pause(self.pause_time)
+            plt.show(block=False)
+        if save:
+            plt.savefig(f'{self.current_dir}/Plots/{self.plot_title}_polytrend.png')
+
+        ax.plot(self.flux_data[0],
+                self.polytrend - self.polytrend_sigma,
+                linestyle='--',
+                linewidth='1',
+                color='black')
+
+        ax.plot(self.flux_data[0],
+                self.polytrend + self.polytrend_sigma,
+                linestyle='--',
+                linewidth='1',
+                color='black')
+
+        ax.fill_between(self.flux_data[0],
+                        self.polytrend - self.polytrend_sigma,
+                        self.polytrend + self.polytrend_sigma,
+                        color='whitesmoke')
+
+        if show:
+            ax.set_title(f'{self.plot_title} Sigma Clipping')
+            window_name = f'{self.plot_title}_sigma_clipping'
+            fig.canvas.manager.set_window_title(window_name)
+            plt.pause(self.pause_time)
+            plt.show(block=False)
+        if save:
+            plt.savefig(f'{self.current_dir}/Plots/{self.plot_title}_sigma_clipping.png')
+
+        ax.errorbar(clipped_x,
+                    clipped_y,
+                    yerr=clipped_err,
+                    linestyle='none',
+                    marker='x',
+                    ms=4,
+                    color='red'
+                    )
+
+        if show:
+            ax.set_title(f'{self.plot_title} Sigma Clipping [Show Excluded]')
+            window_name = f'{self.plot_title}_sigma_clipping_show_clipped'
+            fig.canvas.manager.set_window_title(window_name)
+            plt.pause(self.pause_time)
+            plt.show(block=False)
+        if save:
+            plt.savefig(f'{self.current_dir}/Plots/{self.plot_title}_sigma_clipping_show_clipped.png')
+
+        plt.close()
+
+    def get_average(self):
+        unique_days_str = np.unique(self.sigma_clip_data[0].apply(lambda x: str(x)[0:5]))
+        unique_days = []
+        unique_fluxes_avg = []
+        unique_errors_avg = []
+
+        for i in range(len(unique_days_str)):
+            flux_list_per_obs = []
+            unique_days.append(int(unique_days_str[i]))
+            unique_errors_avg.append(self.flux_error)
+            for j in range(len(self.sigma_clip_data)):
+                if unique_days_str[i] == str(self.sigma_clip_data[0][j])[0:5]:
+                    flux_list_per_obs.append(self.sigma_clip_data[1][j])
+            unique_fluxes_avg.append(np.average(flux_list_per_obs))
+
+        self.avg_data = pd.DataFrame([unique_days, unique_fluxes_avg, unique_errors_avg]).T
+        self.avg_data_length = len(self.avg_data)
+        self.avg_data_peak_idx = self.avg_data[1].idxmax()
+        self.avg_data_peak_list = [self.avg_data[0][self.avg_data_peak_idx],
+                                   self.avg_data[1][self.avg_data_peak_idx]]
+
+        self.avg_data.to_csv(f'{self.current_dir}/Data/{self.plot_title}_sigma_clip_avg_data.dat', index=False, header=False)
+
+        self.log_file.write(f'AVERAGED DATA INFORMATION\n'
+                            f' > Total Detections: {self.avg_data_length}\n'
+                            f' > Peak Index: {self.avg_data_peak_idx}\n'
+                            f' > Peak Time (tp): {self.avg_data_peak_list[0]} MJD\n'
+                            f' > Peak Amplitude (Ap): {self.avg_data_peak_list[1]} Jy\n'
+                            f'\n'
+                            )
+
+    def plot_avg(self, show=True, save=True):
+        fig, ax = plt.subplots(1)
+        fig.set_size_inches(10, 7)
+        ax.set_title(f'{self.plot_title} Light Curve [Averaged]')
+        window_name = f'{self.plot_title}_avg_light_curve'
+        fig.canvas.manager.set_window_title(window_name)
+
+        ax.set(xlabel='Modified Julian Day [MJD]', ylabel='Flux [Jy]')
+        ax.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
+        ax.errorbar(self.avg_data[0],
+                    self.avg_data[1],
+                    yerr=self.avg_data[2],
+                    linestyle='none',
+                    marker='s',
+                    ms=3,
+                    color='black'
+                    )
+
+        # Plots the Peak Location:
+        ax.errorbar(self.avg_data[0][self.avg_data_peak_idx],
+                    self.avg_data[1][self.avg_data_peak_idx],
+                    yerr=self.flux_data[2][self.avg_data_peak_idx],
+                    linestyle='none',
+                    marker='s',
+                    ms=5,
+                    color='red'
+                    )
+
+        if save:
+            plt.savefig(f'{self.current_dir}/Plots/{window_name}.png')
+
+        if show:
+            plt.pause(self.pause_time)
+            plt.show(block=False)
+            plt.close()
+
+        plt.close()
+
+    def get_fit_parameters(self):
+        self.offset_detections = int(np.round(self.avg_data_length * self.offset_prct))
+
+
+
+
